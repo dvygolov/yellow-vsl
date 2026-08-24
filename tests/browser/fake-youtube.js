@@ -36,7 +36,7 @@
     isMuted() { return this.muted; }
     setVolume(value) { this.volume = value; }
     getVolume() { return this.volume; }
-    seekTo(value) { this.time = Number(value) || 0; }
+    seekTo(value) { setTimeout(() => { this.time = Number(value) || 0; }, 50); }
     getCurrentTime() { return this.time; }
     getDuration() { return this.duration; }
     getPlayerState() { return this.state; }

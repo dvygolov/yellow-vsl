@@ -1,4 +1,4 @@
-/*! YellowVSL v1.0.1 | MIT License | https://github.com/dvygolov/yellow-vsl */
+/*! YellowVSL v1.1.0 | MIT License | https://github.com/dvygolov/yellow-vsl */
 
 // src/utils.js
 var DEFAULT_PROGRESS_POINTS = Object.freeze([
@@ -137,6 +137,7 @@ var DEFAULT_LOCALE = Object.freeze({
   close: "\u0417\u0430\u043A\u0440\u044B\u0442\u044C",
   speed: "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C",
   genericError: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0432\u0438\u0434\u0435\u043E",
+  identityError: "YouTube \u043D\u0435 \u043F\u043E\u043B\u0443\u0447\u0438\u043B \u0430\u0434\u0440\u0435\u0441 \u0441\u0430\u0439\u0442\u0430 (HTTP Referer). \u041E\u0442\u043A\u0440\u043E\u0439\u0442\u0435 \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0443 \u0447\u0435\u0440\u0435\u0437 http:// \u0438\u043B\u0438 https://, \u0430 \u043D\u0435 \u043A\u0430\u043A \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u044B\u0439 \u0444\u0430\u0439\u043B.",
   embedError: "\u0410\u0432\u0442\u043E\u0440 \u0432\u0438\u0434\u0435\u043E \u0437\u0430\u043F\u0440\u0435\u0442\u0438\u043B \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0434\u0435\u043D\u0438\u0435 \u043D\u0430 \u0434\u0440\u0443\u0433\u0438\u0445 \u0441\u0430\u0439\u0442\u0430\u0445",
   unavailableError: "\u0412\u0438\u0434\u0435\u043E \u0443\u0434\u0430\u043B\u0435\u043D\u043E, \u0441\u043A\u0440\u044B\u0442\u043E \u0438\u043B\u0438 \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u043E"
 });
@@ -381,7 +382,7 @@ var STYLES = `
 .yvsl-btn--accent { color: #111; background: var(--yvsl-accent); border-color: var(--yvsl-accent); font-weight: 800; }
 .yvsl-controls {
   display: grid;
-  grid-template-columns: auto auto minmax(90px, 1fr) auto auto;
+  grid-template-columns: auto auto minmax(90px, 1fr) auto auto auto;
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
@@ -433,7 +434,7 @@ var STYLES = `
 .yvsl-root:fullscreen .yvsl-stage { max-height: calc(100vh - 76px); }
 .yvsl-visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; }
 @media (max-width: 520px) {
-  .yvsl-controls { grid-template-columns: auto auto minmax(70px, 1fr) auto; padding: 8px; gap: 5px; }
+  .yvsl-controls { grid-template-columns: auto auto minmax(70px, 1fr) auto auto; padding: 8px; gap: 5px; }
   .yvsl-time { display: none; }
   .yvsl-btn { min-width: 38px; padding: 7px 9px; }
   .yvsl-root--sticky { right: 8px; bottom: 8px; width: calc(100vw - 16px); }
@@ -691,6 +692,7 @@ var YellowVSLPlayer = class {
     this.tickTimer = null;
     this.saveAt = 0;
     this.progressEventAt = 0;
+    this.seekGeneration = 0;
     this.completed = false;
     this.lastActiveAt = 0;
     this.readyState = false;
@@ -936,6 +938,7 @@ var YellowVSLPlayer = class {
     let message = locale.genericError;
     if ([101, 150].includes(Number(code))) message = locale.embedError;
     if (Number(code) === 100) message = locale.unavailableError;
+    if (Number(code) === 153) message = locale.identityError;
     this._showError(message, code);
   }
   _showError(message, code) {
@@ -1168,7 +1171,7 @@ var YellowVSLPlayer = class {
   }
   _applySticky() {
     const active = Boolean(
-      this.options.sticky && this.stickyOutOfView && !this.stickyDismissed && !this.popupOpen && this.playerState === YT_STATE.PLAYING
+      this.options.sticky && this.stickyOutOfView && !this.stickyDismissed && !this.popupOpen && document.fullscreenElement !== this.dom.root && this.playerState === YT_STATE.PLAYING
     );
     this.dom.root.classList.toggle("yvsl-root--sticky", active);
   }
@@ -1187,6 +1190,7 @@ var YellowVSLPlayer = class {
   }
   _updateFullscreenButton() {
     const active = document.fullscreenElement === this.dom.root;
+    this._applySticky();
     this.dom.fullscreen.textContent = active ? "\xD7" : "\u26F6";
     this.dom.fullscreen.title = active ? this.options.locale.exitFullscreen : this.options.locale.fullscreen;
     this.dom.fullscreen.setAttribute("aria-label", this.dom.fullscreen.title);
@@ -1246,9 +1250,18 @@ var YellowVSLPlayer = class {
   }
   seek(seconds) {
     const sourceTime = this.timeline.seek(seconds);
+    const logicalTime = sourceTime - this.timeline.start;
+    const generation = ++this.seekGeneration;
     this.adapter?.seekTo(sourceTime);
-    this._tick();
-    return this.timeline.current;
+    this.timeline.current = logicalTime;
+    this._updateUi();
+    this._updateTimedItems();
+    for (const delay of [100, 400, 900]) {
+      window.setTimeout(() => {
+        if (!this.destroyed && generation === this.seekGeneration) this._tick();
+      }, delay);
+    }
+    return logicalTime;
   }
   open() {
     this._createPopup();
@@ -1317,7 +1330,7 @@ function safeLocalStorage() {
 }
 
 // src/index.js
-var version = "1.0.1";
+var version = "1.1.0";
 var autoInstances = /* @__PURE__ */ new WeakMap();
 function create(target, options = {}) {
   return new YellowVSLPlayer(target, options);

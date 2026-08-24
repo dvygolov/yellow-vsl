@@ -15,6 +15,7 @@ export const DEFAULT_LOCALE = Object.freeze({
   close: "Закрыть",
   speed: "Скорость",
   genericError: "Не удалось загрузить видео",
+  identityError: "YouTube не получил адрес сайта (HTTP Referer). Откройте страницу через http:// или https://, а не как локальный файл.",
   embedError: "Автор видео запретил воспроизведение на других сайтах",
   unavailableError: "Видео удалено, скрыто или недоступно"
 });

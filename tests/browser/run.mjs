@@ -35,6 +35,7 @@ try {
       await fullscreenButton.click();
       await page.waitForFunction(() => document.fullscreenElement?.classList.contains("yvsl-root"));
       assert.match(await fullscreenButton.getAttribute("aria-label"), /выйти/i, `${name}: fullscreen enters`);
+      assert.equal(await page.locator("#main .yvsl-root--sticky").count(), 0, `${name}: fullscreen suppresses sticky mode`);
       await page.evaluate(() => document.exitFullscreen());
       await page.waitForFunction(() => !document.fullscreenElement);
     }
@@ -132,6 +133,33 @@ try {
     assert.ok(mobileLayout.pageWidth <= 390, `${name}: no mobile page overflow`);
     assert.ok(mobileLayout.rootWidth <= 390, `${name}: player fits mobile viewport`);
     assert.ok(mobileLayout.controlsOverflow <= 1, `${name}: controls fit mobile viewport`);
+
+    const demoPage = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    const demoErrors = [];
+    demoPage.on("pageerror", (error) => demoErrors.push(error.message));
+    await demoPage.addInitScript({ path: fakeYouTube });
+    await demoPage.goto(`${server.origin}/demo/?autoplay=false`);
+    await demoPage.waitForFunction(() => document.documentElement.dataset.demoReady === "true");
+    assert.equal(await demoPage.locator(".server-badge").isVisible(), true, `${name}: HTTP demo loaded`);
+
+    await demoPage.click("#test-single");
+    await demoPage.waitForFunction(() => ["pass", "fail"].includes(document.querySelector("#interaction-result")?.dataset.status));
+    assert.equal(await demoPage.locator("#interaction-result").getAttribute("data-status"), "pass", `${name}: demo single-player check`);
+    assert.match(await demoPage.locator("#interaction-result").textContent(), /играет только один/i, `${name}: demo single-player copy`);
+
+    await demoPage.click("#test-error");
+    assert.equal(await demoPage.locator("#interaction-result").getAttribute("data-status"), "pass", `${name}: demo invalid URL check`);
+    assert.match(await demoPage.locator("#error-mount").textContent(), /корректный URL/i, `${name}: invalid URL rendered in component`);
+
+    await demoPage.evaluate(() => window.demo.popupPlayer._onPlayerError(153));
+    assert.match(await demoPage.locator("#popup-player .yvsl-error").textContent(), /HTTP Referer/i, `${name}: Error 153 guidance`);
+
+    await demoPage.goto(`${server.origin}/demo/?show-file-warning=1`);
+    assert.equal(await demoPage.locator("#file-warning").isVisible(), true, `${name}: file protocol guidance visible`);
+    assert.equal(await demoPage.locator("#demo-app").isHidden(), true, `${name}: players skipped in file warning mode`);
+    assert.match(await demoPage.locator("#file-warning").textContent(), /start-demo\.cmd/i, `${name}: launcher instruction`);
+    assert.deepEqual(demoErrors, [], `${name}: no demo page errors`);
+    await demoPage.close();
 
     assert.deepEqual(pageErrors, [], `${name}: no page errors`);
     results.push(`${name}: ok`);

@@ -88,7 +88,7 @@ export const STYLES = `
 .yvsl-btn--accent { color: #111; background: var(--yvsl-accent); border-color: var(--yvsl-accent); font-weight: 800; }
 .yvsl-controls {
   display: grid;
-  grid-template-columns: auto auto minmax(90px, 1fr) auto auto;
+  grid-template-columns: auto auto minmax(90px, 1fr) auto auto auto;
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
@@ -140,7 +140,7 @@ export const STYLES = `
 .yvsl-root:fullscreen .yvsl-stage { max-height: calc(100vh - 76px); }
 .yvsl-visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; }
 @media (max-width: 520px) {
-  .yvsl-controls { grid-template-columns: auto auto minmax(70px, 1fr) auto; padding: 8px; gap: 5px; }
+  .yvsl-controls { grid-template-columns: auto auto minmax(70px, 1fr) auto auto; padding: 8px; gap: 5px; }
   .yvsl-time { display: none; }
   .yvsl-btn { min-width: 38px; padding: 7px 9px; }
   .yvsl-root--sticky { right: 8px; bottom: 8px; width: calc(100vw - 16px); }

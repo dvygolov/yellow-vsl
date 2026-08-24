@@ -1,0 +1,24 @@
+# YellowVSL v1.1.0 — визуальная приёмка
+
+Стенд запускался по HTTP с настоящим публичным YouTube-видео. Перед сохранением каждого кадра Playwright проверял состояние DOM и API плеера; затем каждый PNG был открыт и просмотрен визуально. В таблицу включены только принятые кадры.
+
+| № | Что проверено | Автоматическое условие перед снимком | Визуальная проверка | Кадр |
+| --- | --- | --- | --- | --- |
+| 1 | Smart Autoplay | `playerState=1`, `muted=true`, показано предложение включить звук | Видео действительно играет; видны внешний контрол звука, Smart Progress и понятная подсказка | [01-smart-autoplay.png](screenshots/01-smart-autoplay.png) |
+| 2 | Включение звука с возвратом к началу | `muted=false`, время около начала ролика, сообщение скрыто | Кадр начала воспроизводится со звуком; состояние и индикатор звука согласованы | [02-unmute-restart.png](screenshots/02-unmute-restart.png) |
+| 3 | Mini-hook | `currentTime≈2.6`, hook виден, CTA и оффер скрыты | Hook расположен над кадром и не перекрывает YouTube iframe | [03-mini-hook.png](screenshots/03-mini-hook.png) |
+| 4 | Smart Progress, CTA и раскрытие страницы | `currentTime≈6.1`, Smart Progress `30%`, CTA и `#offer` видимы | CTA находится вне iframe; раскрытый оффер читаем и соответствует таймингу | [04-smart-progress-cta.png](screenshots/04-smart-progress-cta.png) |
+| 5 | Блокировка перехода вперёд | Запрошено `maxWatched+60`, фактическая позиция осталась у `maxWatched` | Зелёный результат показывает запрошенную и фактическую позиции | [05-forward-seek-blocked.png](screenshots/05-forward-seek-blocked.png) |
+| 6 | Возврат назад | Запрошено `maxWatched-2`, фактическая позиция совпала с запросом | Результат и шкала показывают разрешённый возврат в просмотренную область | [06-backward-seek-allowed.png](screenshots/06-backward-seek-allowed.png) |
+| 7 | `start/end`, loop, 1.5×, 9:16, real progress и тема | Длительность фрагмента `6`, скорость `1.5`, завершено два цикла, состояние `playing` | Вертикальная геометрия, cyan-тема, реальная шкала и счётчик циклов отображаются корректно | [07-segment-loop-vertical-rate.png](screenshots/07-segment-loop-vertical-rate.png) |
+| 8 | Popup и пауза других экземпляров | Popup открыт, backdrop видим, progress скрыт, второй плеер перешёл на паузу | Диалог центрирован, фон затемнён, кнопка закрытия и внешние controls доступны | [08-popup-pauses-others.png](screenshots/08-popup-pauses-others.png) |
+| 9 | Fullscreen | `document.fullscreenElement` — корень плеера; sticky выключен | Видео и controls занимают экран; лишняя sticky-кнопка после исправления отсутствует | [09-fullscreen.png](screenshots/09-fullscreen.png) |
+| 10 | Sticky | При прокрутке `sticky=true`, корень видим в правом нижнем углу | Mini-player не выходит за viewport; видны controls и отдельная кнопка закрытия | [10-sticky.png](screenshots/10-sticky.png) |
+| 11 | Continue Watching | После сохранения и reload показаны кнопки «Продолжить» и «Начать сначала», `maxWatched≈3.5` | Resume-панель читаема; сохранённая просмотренная область видна в состоянии | [11-resume-prompt.png](screenshots/11-resume-prompt.png) |
+| 12 | Мобильная адаптация | viewport `390`, ширина страницы `390`, overflow controls `0` | Заголовок, карточка, iframe и все controls помещаются без горизонтальной прокрутки | [13-mobile-responsive.png](screenshots/13-mobile-responsive.png) |
+| 13 | Защита от локального `file://` / Error 153 | Warning видим, приложение скрыто, указан `demo\\start-demo.cmd` | Инструкция контрастная, объясняет HTTP Referer и даёт рабочий локальный адрес | [14-error-153-guidance.png](screenshots/14-error-153-guidance.png) |
+| 14 | Несколько экземпляров | Основной плеер `paused`, фрагмент `playing`, результат `pass` | Стенд явно показывает, что одновременно играет только один экземпляр | [15-single-active-player.png](screenshots/15-single-active-player.png) |
+| 15 | Ошибка конфигурации | Невалидная строка отклонена до YouTube, результат `pass` | Сообщение показано внутри выделенного контейнера и не ломает страницу | [16-invalid-url-error.png](screenshots/16-invalid-url-error.png) |
+| 16 | Клиентские события | В журнале есть `play`, `progress`, `cta-show`, `cta-click`, `pause`; оффер открыт | Журнал событий и CTA одновременно видны; никаких сетевых отправок стенд не выполняет | [17-client-events-cta-click.png](screenshots/17-client-events-cta-click.png) |
+
+Дополнительно те же основные сценарии проходят детерминированные тесты в Chromium, Firefox и WebKit. Live smoke-test использует официальный YouTube IFrame Player API и вынесен в `npm run test:live`, потому что зависит от доступности YouTube.

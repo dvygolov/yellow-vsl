@@ -10,7 +10,7 @@
   data-video="https://youtu.be/M7lc1UVf-VE">
 </div>
 
-<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.0.1/dist/yellow-vsl.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.1.0/dist/yellow-vsl.min.js"></script>
 ```
 
 По умолчанию включены:
@@ -21,6 +21,26 @@
 - предложение продолжить просмотр при следующем посещении;
 - play/pause, звук и fullscreen во внешней панели.
 
+## Рабочее локальное демо
+
+YouTube не разрешает надёжно запускать IFrame Player API со страницы, открытой как `file://`: в таком режиме может появиться Error 153 из-за отсутствия HTTP Referer. Поэтому не открывайте `demo/index.html` двойным щелчком.
+
+В Windows запустите:
+
+```text
+demo\start-demo.cmd
+```
+
+Или из терминала в каталоге проекта:
+
+```bash
+npm run demo
+```
+
+Команда поднимет локальный HTTP-сервер и откроет `http://127.0.0.1:4173/demo/`. Стенд содержит реальные интерактивные проверки Smart Autoplay, Smart Progress, CTA, hooks, перемотки, resume, popup, sticky, fullscreen, вертикального фрагмента, loop, скорости, нескольких плееров и клиентских событий.
+
+[Матрица проверок и визуальные доказательства](evidence/README.md)
+
 ## Расширенная настройка
 
 ```html
@@ -30,7 +50,7 @@
   Этот блок откроется после просмотра питча.
 </section>
 
-<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.0.1/dist/yellow-vsl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.1.0/dist/yellow-vsl.min.js"></script>
 <script>
   const player = YellowVSL.create("#sales-video", {
     video: "https://www.youtube.com/watch?v=M7lc1UVf-VE",
@@ -164,6 +184,7 @@ YellowVSL использует официальный YouTube IFrame Player API 
 - Нельзя гарантировать полное отсутствие логотипа, ссылок, рекламы или других элементов YouTube.
 - Запрет перехода вперёд рассчитан на обычного посетителя и не является DRM.
 - Приватное, удалённое, возрастное или запрещённое для embed видео может не воспроизводиться.
+- Error 153 означает, что YouTube не получил HTTP Referer или другой идентификатор клиента. YellowVSL показывает для него отдельную инструкцию; локальное демо нужно запускать через HTTP-команду выше.
 - Автозапуск со звуком блокируется современными браузерами, поэтому Smart Autoplay сначала работает без звука.
 
 [Параметры IFrame Player](https://developers.google.com/youtube/player_parameters) · [Правила YouTube API](https://developers.google.com/youtube/terms/developer-policies)
@@ -179,6 +200,8 @@ npm run test:live
 ```
 
 `npm test` собирает проект и запускает unit-тесты и детерминированные браузерные тесты в Chromium, Firefox и WebKit. Live smoke-test вынесен отдельно, поскольку зависит от доступности YouTube.
+
+Для прямого скачивания используйте файлы из [GitHub Releases](https://github.com/dvygolov/yellow-vsl/releases) или `dist/yellow-vsl.min.js` из нужного версионного тега. Для продакшена фиксируйте версию в CDN-адресе, а не подключайте ветку `main`.
 
 ## Лицензия
 

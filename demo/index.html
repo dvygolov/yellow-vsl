@@ -4,68 +4,163 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="data:,">
-  <title>YellowVSL — демонстрация</title>
+  <title>YellowVSL — полный проверочный стенд</title>
   <style>
-    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #0b0c0f; color: #fff; }
-    body { margin: 0; }
-    main { width: min(920px, calc(100% - 32px)); margin: 0 auto; padding: 50px 0 100vh; }
-    h1 { color: #ffd400; font-size: clamp(34px, 7vw, 64px); margin-bottom: 8px; }
-    .lead { color: #b8bbc4; font-size: 18px; margin: 0 0 32px; }
-    .offer { margin-top: 20px; padding: 24px; color: #111; background: #ffd400; border-radius: 14px; }
-    .toolbar { display: flex; gap: 10px; margin: 24px 0; }
-    .toolbar button { padding: 12px 18px; border: 0; border-radius: 10px; font-weight: 800; cursor: pointer; }
-    #event-log { margin-top: 28px; padding: 16px; min-height: 100px; color: #b9f6ca; background: #13151a; border-radius: 12px; white-space: pre-wrap; }
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #090a0d; color: #f7f7f8; }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: radial-gradient(circle at 50% -10%, #28230b 0, #0d0e12 34%, #090a0d 72%); }
+    button, a { font: inherit; }
+    button { cursor: pointer; }
+    [hidden] { display: none !important; }
+    .page { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 180px; }
+    .hero { display: grid; gap: 16px; margin-bottom: 34px; }
+    .eyebrow { margin: 0; color: #ffd400; font-size: 13px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(40px, 7vw, 78px); line-height: .95; letter-spacing: -.055em; }
+    .lead { max-width: 820px; margin: 0; color: #b9bdc7; font-size: clamp(17px, 2.2vw, 22px); line-height: 1.55; }
+    .server-badge { display: inline-flex; align-items: center; gap: 8px; width: fit-content; padding: 8px 12px; color: #b8f7c5; background: #102517; border: 1px solid #28653a; border-radius: 999px; font-size: 13px; font-weight: 800; }
+    .server-badge::before { content: ""; width: 8px; height: 8px; background: #55db75; border-radius: 50%; box-shadow: 0 0 16px #55db75; }
+    .grid { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 22px; align-items: start; }
+    .card { background: rgba(20, 22, 27, .96); border: 1px solid #2a2d35; border-radius: 20px; box-shadow: 0 22px 70px rgba(0,0,0,.28); overflow: hidden; }
+    .card + .card { margin-top: 22px; }
+    .card-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 20px 22px; border-bottom: 1px solid #2a2d35; }
+    .card-head h2, .card-head h3 { margin: 0; font-size: 20px; }
+    .card-head p { width: 100%; margin: 2px 0 0; color: #9ea3af; line-height: 1.5; }
+    .card-body { padding: 22px; }
+    .tag-row { display: flex; flex-wrap: wrap; gap: 7px; }
+    .tag { padding: 6px 9px; color: #d9dce3; background: #23262d; border: 1px solid #343842; border-radius: 999px; font-size: 12px; font-weight: 750; }
+    .tag--yellow { color: #181400; background: #ffd400; border-color: #ffd400; }
+    .state-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin-top: 16px; }
+    .state { min-width: 0; padding: 11px; background: #0f1115; border: 1px solid #282b33; border-radius: 12px; }
+    .state span { display: block; color: #858b98; font-size: 11px; font-weight: 800; text-transform: uppercase; }
+    .state strong { display: block; margin-top: 4px; overflow: hidden; color: #fff; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
+    .actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 16px; }
+    .btn { min-height: 42px; padding: 9px 14px; color: #f7f7f8; background: #252830; border: 1px solid #393d47; border-radius: 11px; font-weight: 800; }
+    .btn:hover { background: #30343e; }
+    .btn--primary { color: #171400; background: #ffd400; border-color: #ffd400; }
+    .result { margin-top: 12px; padding: 12px 14px; color: #cbd0da; background: #101217; border: 1px solid #2c3038; border-radius: 11px; line-height: 1.45; }
+    .result[data-status="pass"] { color: #b8f7c5; background: #102517; border-color: #28653a; }
+    .result[data-status="fail"] { color: #ffc0c0; background: #2d1115; border-color: #713039; }
+    .offer { margin: 18px 22px 22px; padding: 22px; color: #181400; background: linear-gradient(135deg, #ffd400, #ffed7a); border-radius: 14px; }
+    .offer strong { display: block; margin-bottom: 5px; font-size: 20px; }
+    .side-card { position: sticky; top: 16px; }
+    .event-log { height: 310px; margin: 0; padding: 15px; overflow: auto; color: #a9f3b9; background: #080a0c; border: 1px solid #272b31; border-radius: 12px; font: 12px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; }
+    .vertical-wrap { display: grid; grid-template-columns: 210px 1fr; gap: 18px; align-items: start; }
+    #segment-player { width: 210px; }
+    .proof-list { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
+    .proof-list li { display: flex; align-items: center; gap: 8px; color: #c9cdd5; }
+    .proof-list li::before { content: "✓"; display: grid; place-items: center; width: 21px; height: 21px; color: #111; background: #ffd400; border-radius: 50%; font-size: 12px; font-weight: 900; }
+    .spacer { height: 900px; display: grid; place-items: center; color: #656b76; text-align: center; }
+    .file-warning { width: min(760px, calc(100% - 32px)); margin: 8vh auto; padding: 30px; color: #fff; background: #321419; border: 1px solid #8c3f49; border-radius: 20px; box-shadow: 0 30px 100px rgba(0,0,0,.5); }
+    .file-warning h1 { margin-bottom: 18px; font-size: clamp(30px, 7vw, 52px); letter-spacing: -.04em; }
+    .file-warning p { color: #f1c7cc; font-size: 18px; line-height: 1.55; }
+    .file-warning code { display: block; margin: 18px 0; padding: 16px; color: #171400; background: #ffd400; border-radius: 10px; font: 800 16px ui-monospace, Consolas, monospace; }
+    .file-warning a { display: inline-flex; padding: 11px 16px; color: #fff; background: #552129; border: 1px solid #8c3f49; border-radius: 10px; font-weight: 800; text-decoration: none; }
+    @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } .side-card { position: static; } }
+    @media (max-width: 590px) {
+      .page { width: min(100% - 20px, 1120px); padding-top: 28px; }
+      .card-head, .card-body { padding: 16px; }
+      .state-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .vertical-wrap { grid-template-columns: 1fr; }
+      #segment-player { width: min(230px, 100%); margin: 0 auto; }
+      .spacer { height: 600px; }
+    }
   </style>
 </head>
 <body>
-  <main>
-    <h1>YellowVSL</h1>
-    <p class="lead">Vanilla-JS VSL-плеер поверх официального YouTube IFrame API.</p>
+  <section id="file-warning" class="file-warning" hidden>
+    <p class="eyebrow">Локальный запуск</p>
+    <h1>Нельзя открывать демо как файл</h1>
+    <p>YouTube возвращает <strong>Error 153</strong>, потому что у страницы <code style="display:inline;padding:2px 5px;margin:0;background:#552129;color:#fff">file://</code> нет HTTP Referer. Это ограничение YouTube, а не ошибка ролика.</p>
+    <p>Закройте эту вкладку и запустите:</p>
+    <code>demo\start-demo.cmd</code>
+    <p>Файл поднимет локальный HTTP-сервер и сам откроет рабочий адрес <strong>http://127.0.0.1:4173/demo/</strong>.</p>
+    <a href="./start-demo.cmd" download>Скачать start-demo.cmd</a>
+  </section>
 
-    <div id="main-player"></div>
-    <section id="offer" class="offer" hidden>
-      <strong>Предложение открыто.</strong> В реальном лендинге здесь размещаются цена, гарантия, FAQ и кнопка покупки.
-    </section>
+  <main id="demo-app" class="page" hidden>
+    <header class="hero">
+      <p class="eyebrow">Yellow Web · v1.1.0</p>
+      <h1>YellowVSL Feature Lab</h1>
+      <p class="lead">Полный локальный стенд: каждая визуальная функция включается, проверяется и оставляет наблюдаемый результат на странице.</p>
+      <div class="server-badge">HTTP-сервер работает · Error 153 исключён</div>
+    </header>
 
-    <div class="toolbar">
-      <button id="open-popup" type="button">Открыть popup-версию</button>
+    <div class="grid">
+      <div>
+        <section id="main-card" class="card" data-evidence="main-player">
+          <div class="card-head">
+            <div><h2>Основной VSL-плеер</h2></div>
+            <div class="tag-row"><span class="tag tag--yellow">Smart Progress</span><span class="tag">Smart Autoplay</span><span class="tag">No-seek</span><span class="tag">Resume</span><span class="tag">0–60 сек</span></div>
+            <p>Smart Progress включён по умолчанию. Назад можно, вперёд — только до реально просмотренной точки.</p>
+          </div>
+          <div id="main-player"></div>
+          <div class="card-body">
+            <div class="state-grid" aria-label="Текущее состояние плеера">
+              <div class="state"><span>Состояние</span><strong id="state-playback">загрузка</strong></div>
+              <div class="state"><span>Текущее время</span><strong id="state-current">0.0 с</strong></div>
+              <div class="state"><span>Просмотрено до</span><strong id="state-max">0.0 с</strong></div>
+              <div class="state"><span>Smart Progress</span><strong id="state-visual">0%</strong></div>
+              <div class="state"><span>Звук</span><strong id="state-muted">выключен</strong></div>
+              <div class="state"><span>Скорость</span><strong id="state-rate">1×</strong></div>
+            </div>
+            <div class="actions">
+              <button id="demo-unmute" class="btn btn--primary" type="button">Включить звук + сначала</button>
+              <button id="test-forward" class="btn" type="button">Попробовать +60 секунд</button>
+              <button id="test-backward" class="btn" type="button">Вернуться на 2 секунды</button>
+              <button id="save-resume" class="btn" type="button">Сохранить и перезагрузить</button>
+              <button id="reset-demo" class="btn" type="button">Сбросить сохранение</button>
+            </div>
+            <div id="seek-result" class="result">Нажмите кнопку проверки перемотки — здесь появятся запрошенная и фактическая позиции.</div>
+          </div>
+          <section id="offer" class="offer" hidden><strong>CTA сработал — оффер открыт</strong>Блок был скрыт до шестой секунды медиавремени. Состояние сохраняется между визитами.</section>
+        </section>
+
+        <section id="segment-card" class="card" data-evidence="segment-player">
+          <div class="card-head">
+            <div><h2>Фрагмент, скорость, loop и вертикальный формат</h2></div>
+            <div class="tag-row"><span class="tag">9:16</span><span class="tag">10–16 с</span><span class="tag">1.5×</span><span class="tag">Loop</span><span class="tag">Real progress</span></div>
+          </div>
+          <div class="card-body vertical-wrap">
+            <div id="segment-player"></div>
+            <div>
+              <ul class="proof-list"><li>Показывается только шестисекундный фрагмент</li><li>После конца начинается новый цикл</li><li>Скорость установлена в 1.5×</li><li>Прогресс здесь реальный, не Smart</li></ul>
+              <div class="actions"><button id="play-segment" class="btn btn--primary" type="button">Запустить фрагмент</button></div>
+              <div id="segment-result" class="result">Циклов завершено: 0 · состояние: пауза</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="interaction-card" class="card" data-evidence="interaction">
+          <div class="card-head"><div><h2>Popup, несколько плееров и ошибки</h2></div><p>Popup ставит другие экземпляры на паузу. Ошибка конфигурации показывается внутри выделенного контейнера.</p></div>
+          <div class="card-body">
+            <div class="actions"><button id="open-popup" class="btn btn--primary" type="button">Открыть popup</button><button id="test-single" class="btn" type="button">Проверить один активный плеер</button><button id="test-error" class="btn" type="button">Показать ошибку URL</button></div>
+            <div id="interaction-result" class="result">Проверки ещё не запускались.</div>
+            <div id="error-mount" style="margin-top:12px"></div>
+          </div>
+          <div id="popup-player"></div>
+        </section>
+
+        <div class="spacer" aria-hidden="true">Прокрутите сюда во время воспроизведения — основной плеер закрепится в углу.<br>Кнопка × закрывает sticky и ставит видео на паузу.</div>
+      </div>
+
+      <aside id="events-card" class="card side-card" data-evidence="events">
+        <div class="card-head"><div><h3>Живые события</h3></div><div class="tag-row"><span id="event-count" class="tag tag--yellow">0 событий</span></div><p>YellowVSL ничего не отправляет сам — события всплывают в DOM.</p></div>
+        <div class="card-body"><pre id="event-log" class="event-log" aria-live="polite">Ожидание событий…</pre></div>
+      </aside>
     </div>
-    <div id="popup-player"></div>
-    <pre id="event-log" aria-live="polite">События YellowVSL появятся здесь.</pre>
   </main>
 
-  <script src="../dist/yellow-vsl.js"></script>
   <script>
-    const video = "https://www.youtube.com/watch?v=M7lc1UVf-VE";
-    window.mainPlayer = YellowVSL.create("#main-player", {
-      video,
-      sticky: true,
-      hooks: [
-        { start: 3, end: 8, text: "Mini-hook: дальше будет самое важное", placement: "above" }
-      ],
-      ctas: [
-        { id: "demo-offer", start: 12, text: "Открыть предложение", reveal: "#offer", persist: true }
-      ]
-    });
-
-    window.popupPlayer = YellowVSL.create("#popup-player", {
-      video,
-      popup: { trigger: "#open-popup" },
-      playback: { autoplay: false }
-    });
-
-    const log = document.querySelector("#event-log");
-    for (const name of ["ready", "play", "pause", "progress", "resume", "complete", "cta-show", "cta-click", "error"]) {
-      document.addEventListener(`yellowvsl:${name}`, (event) => {
-        if (name === "progress" && Math.floor(event.detail.currentTime) % 5 !== 0) return;
-        log.textContent = `${name}: ${JSON.stringify({
-          videoId: event.detail.videoId,
-          currentTime: Math.round(event.detail.currentTime),
-          maxWatched: Math.round(event.detail.maxWatched),
-          cta: event.detail.cta,
-          code: event.detail.code
-        })}\n${log.textContent}`;
-      });
+    if (location.protocol === "file:" || new URLSearchParams(location.search).has("show-file-warning")) {
+      document.querySelector("#file-warning").hidden = false;
+    } else {
+      document.querySelector("#demo-app").hidden = false;
+      const script = document.createElement("script");
+      script.src = "../dist/yellow-vsl.js";
+      script.onload = () => import("./demo.js");
+      script.onerror = () => { document.querySelector("#demo-app").innerHTML = "<div class='file-warning'><h1>Не найдена сборка</h1><p>Выполните <strong>npm run build</strong> и перезапустите демо.</p></div>"; };
+      document.head.append(script);
     }
   </script>
 </body>

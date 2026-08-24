@@ -49,6 +49,7 @@ export class YellowVSLPlayer {
     this.tickTimer = null;
     this.saveAt = 0;
     this.progressEventAt = 0;
+    this.seekGeneration = 0;
     this.completed = false;
     this.lastActiveAt = 0;
     this.readyState = false;
@@ -322,6 +323,7 @@ export class YellowVSLPlayer {
     let message = locale.genericError;
     if ([101, 150].includes(Number(code))) message = locale.embedError;
     if (Number(code) === 100) message = locale.unavailableError;
+    if (Number(code) === 153) message = locale.identityError;
     this._showError(message, code);
   }
 
@@ -587,6 +589,7 @@ export class YellowVSLPlayer {
       this.stickyOutOfView &&
       !this.stickyDismissed &&
       !this.popupOpen &&
+      document.fullscreenElement !== this.dom.root &&
       this.playerState === YT_STATE.PLAYING
     );
     this.dom.root.classList.toggle("yvsl-root--sticky", active);
@@ -611,6 +614,7 @@ export class YellowVSLPlayer {
 
   _updateFullscreenButton() {
     const active = document.fullscreenElement === this.dom.root;
+    this._applySticky();
     this.dom.fullscreen.textContent = active ? "×" : "⛶";
     this.dom.fullscreen.title = active ? this.options.locale.exitFullscreen : this.options.locale.fullscreen;
     this.dom.fullscreen.setAttribute("aria-label", this.dom.fullscreen.title);
@@ -679,9 +683,18 @@ export class YellowVSLPlayer {
 
   seek(seconds) {
     const sourceTime = this.timeline.seek(seconds);
+    const logicalTime = sourceTime - this.timeline.start;
+    const generation = ++this.seekGeneration;
     this.adapter?.seekTo(sourceTime);
-    this._tick();
-    return this.timeline.current;
+    this.timeline.current = logicalTime;
+    this._updateUi();
+    this._updateTimedItems();
+    for (const delay of [100, 400, 900]) {
+      window.setTimeout(() => {
+        if (!this.destroyed && generation === this.seekGeneration) this._tick();
+      }, delay);
+    }
+    return logicalTime;
   }
 
   open() {
