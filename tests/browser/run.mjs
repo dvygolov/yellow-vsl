@@ -70,6 +70,8 @@ try {
       await page.waitForFunction(() => !document.fullscreenElement);
     }
 
+    await page.evaluate(() => window.mainPlayer.play());
+    await page.waitForFunction(() => window.mainPlayer.getState().playerState === 1);
     await page.waitForFunction(() => window.mainPlayer.getState().maxWatched > 0.5);
     const seek = await page.evaluate(() => {
       const before = window.mainPlayer.getState().maxWatched;
