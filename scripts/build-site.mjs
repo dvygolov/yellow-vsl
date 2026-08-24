@@ -11,7 +11,7 @@ await mkdir(output, { recursive: true });
 await cp(source, output, { recursive: true });
 await cp(resolve(root, "dist/yellow-vsl.min.js"), resolve(output, "yellow-vsl.min.js"));
 
-for (const filename of ["index.html", "app.js", "styles.css"]) {
+for (const filename of ["index.html", "app.js", "i18n.js", "styles.css"]) {
   const path = resolve(output, filename);
   const content = await readFile(path, "utf8");
   await writeFile(path, content.replaceAll("__VERSION__", pkg.version));

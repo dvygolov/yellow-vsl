@@ -1,4 +1,4 @@
-# YellowVSL v1.2.0 — визуальная приёмка
+# YellowVSL v1.3.0 — визуальная приёмка
 
 Стенд запускался по HTTP с настоящим публичным YouTube-видео. Перед сохранением каждого кадра Playwright проверял состояние DOM и API плеера; затем каждый PNG был открыт и просмотрен визуально. В таблицу включены только принятые кадры.
 
@@ -24,5 +24,7 @@
 | 18 | Воспроизведение после hover и CTA в углу | Видео играет, мышь над кадром, обложка скрыта, CTA находится в `bottom-right` | Виден только видеокадр, угловой CTA и нижняя панель YellowVSL | [26-hover-playing-clean-cta-bottom-right.png](screenshots/26-hover-playing-clean-cta-bottom-right.png) |
 | 19 | Popup на паузе после hover | Popup открыт, iframe не получает pointer events, собственная обложка видима | В модальном окне нет штатных элементов YouTube | [27-popup-hover-paused-own-poster.png](screenshots/27-popup-hover-paused-own-poster.png) |
 | 20 | Popup воспроизводится после hover | Popup создан при открытии, `playerState=1`, мышь над кадром, обложка скрыта | Чистый видеокадр и внешняя панель YellowVSL остаются видимыми без YouTube overlay | [28-popup-hover-playing-clean.png](screenshots/28-popup-hover-playing-clean.png) |
+| 21 | Русский сайт и примеры настройки | `lang=ru`, активен российский флаг, длительность YouTube `2355.661`, у hero и основного примера `end=null` | В разделе установки видны готовые примеры CTA, playback и режимов плеера | [32-ru-install-configuration.png](screenshots/32-ru-install-configuration.png) |
+| 22 | Английский сайт и переключатель языка | `lang=en`, активен британский флаг, кириллица в видимом тексте отсутствует, документация ведёт в `README.en.md` | Английская адаптация и три конфигурационных примера помещаются в desktop viewport | [33-en-install-configuration.png](screenshots/33-en-install-configuration.png) |
 
 Дополнительно те же основные сценарии проходят детерминированные тесты в Chromium, Firefox и WebKit. Live smoke-test использует официальный YouTube IFrame Player API и вынесен в `npm run test:live`, потому что зависит от доступности YouTube.

@@ -9,7 +9,7 @@ const shared = {
   legalComments: "eof",
   sourcemap: true,
   banner: {
-    js: "/*! YellowVSL v1.2.0 | MIT License | https://github.com/dvygolov/yellow-vsl */"
+    js: "/*! YellowVSL v1.3.0 | MIT License | https://github.com/dvygolov/yellow-vsl */"
   }
 };
 

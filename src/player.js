@@ -560,6 +560,7 @@ export class YellowVSLPlayer {
       const node = safeUrl
         ? element("a", "yvsl-cta", { text: String(item.text || "Перейти"), href: safeUrl, target: item.target || "_self" })
         : element("button", "yvsl-cta", { text: String(item.text || "Показать предложение"), type: "button" });
+      this._applyCtaColors(node, item);
       node.hidden = true;
       if (node.target === "_blank") node.rel = "noopener noreferrer";
       this._zone(item.placement).append(node);
@@ -572,6 +573,12 @@ export class YellowVSLPlayer {
     }
 
     this._updateTimedItems();
+  }
+
+  _applyCtaColors(node, item) {
+    const supportsColor = (value) => typeof value === "string" && (!globalThis.CSS?.supports || globalThis.CSS.supports("color", value));
+    if (supportsColor(item.background)) node.style.backgroundColor = item.background;
+    if (supportsColor(item.color)) node.style.color = item.color;
   }
 
   _zone(placement) {

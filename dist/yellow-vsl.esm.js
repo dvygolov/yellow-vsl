@@ -1,4 +1,4 @@
-/*! YellowVSL v1.2.0 | MIT License | https://github.com/dvygolov/yellow-vsl */
+/*! YellowVSL v1.3.0 | MIT License | https://github.com/dvygolov/yellow-vsl */
 
 // src/utils.js
 var DEFAULT_PROGRESS_POINTS = Object.freeze([
@@ -1184,6 +1184,7 @@ var YellowVSLPlayer = class {
     for (const item of this.options.ctas) {
       const safeUrl = toSafeUrl(item.url, location.href);
       const node = safeUrl ? element("a", "yvsl-cta", { text: String(item.text || "\u041F\u0435\u0440\u0435\u0439\u0442\u0438"), href: safeUrl, target: item.target || "_self" }) : element("button", "yvsl-cta", { text: String(item.text || "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u043F\u0440\u0435\u0434\u043B\u043E\u0436\u0435\u043D\u0438\u0435"), type: "button" });
+      this._applyCtaColors(node, item);
       node.hidden = true;
       if (node.target === "_blank") node.rel = "noopener noreferrer";
       this._zone(item.placement).append(node);
@@ -1195,6 +1196,11 @@ var YellowVSLPlayer = class {
       });
     }
     this._updateTimedItems();
+  }
+  _applyCtaColors(node, item) {
+    const supportsColor = (value) => typeof value === "string" && (!globalThis.CSS?.supports || globalThis.CSS.supports("color", value));
+    if (supportsColor(item.background)) node.style.backgroundColor = item.background;
+    if (supportsColor(item.color)) node.style.color = item.color;
   }
   _zone(placement) {
     return {
@@ -1498,7 +1504,7 @@ function safeLocalStorage() {
 }
 
 // src/index.js
-var version = "1.2.0";
+var version = "1.3.0";
 var autoInstances = /* @__PURE__ */ new WeakMap();
 function create(target, options = {}) {
   return new YellowVSLPlayer(target, options);

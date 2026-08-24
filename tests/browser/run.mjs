@@ -91,7 +91,7 @@ try {
         playback: { autoplay: false },
         stage: { revealDelay: 0 },
         hooks: [{ start: 0.2, end: 2, text: "Hook", placement: "above" }],
-        ctas: [{ id: "offer", start: 0.5, text: "CTA", reveal: "#offer", placement: "bottom-right", persist: true }]
+        ctas: [{ id: "offer", start: 0.5, text: "CTA", reveal: "#offer", placement: "bottom-right", background: "#123456", color: "#ffffff", persist: true }]
       });
       await window.advancedPlayer.ready;
       window.advancedPlayer.play();
@@ -102,6 +102,8 @@ try {
     assert.equal(await page.locator("#advanced .yvsl-hook").isVisible(), true, `${name}: hook timing`);
     assert.equal(await page.locator("#advanced .yvsl-cta").isVisible(), true, `${name}: CTA timing`);
     assert.equal(await page.locator("#advanced .yvsl-cta").evaluate((node) => node.parentElement.classList.contains("yvsl-zone--bottom-right")), true, `${name}: CTA corner placement`);
+    assert.equal(await page.locator("#advanced .yvsl-cta").evaluate((node) => getComputedStyle(node).backgroundColor), "rgb(18, 52, 86)", `${name}: CTA background color`);
+    assert.equal(await page.locator("#advanced .yvsl-cta").evaluate((node) => getComputedStyle(node).color), "rgb(255, 255, 255)", `${name}: CTA text color`);
     assert.equal(await page.locator("#offer").isVisible(), true, `${name}: reveal target`);
     assert.ok((await page.evaluate(() => window.eventNames)).includes("play"), `${name}: bubbling events`);
 
