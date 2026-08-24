@@ -1,4 +1,4 @@
-/*! YellowVSL v1.0.0 | MIT License | https://github.com/dvygolov/yellow-vsl */
+/*! YellowVSL v1.0.1 | MIT License | https://github.com/dvygolov/yellow-vsl */
 
 // src/utils.js
 var DEFAULT_PROGRESS_POINTS = Object.freeze([
@@ -1179,9 +1179,10 @@ var YellowVSLPlayer = class {
   }
   _toggleFullscreen() {
     if (document.fullscreenElement === this.dom.root) {
-      document.exitFullscreen?.();
+      const result = document.exitFullscreen?.();
+      result?.then?.(() => this._updateFullscreenButton());
     } else {
-      this.dom.root.requestFullscreen?.().catch((error) => this._emit("error", { code: "fullscreen", message: error.message }));
+      this.dom.root.requestFullscreen?.().then(() => this._updateFullscreenButton()).catch((error) => this._emit("error", { code: "fullscreen", message: error.message }));
     }
   }
   _updateFullscreenButton() {
@@ -1316,7 +1317,7 @@ function safeLocalStorage() {
 }
 
 // src/index.js
-var version = "1.0.0";
+var version = "1.0.1";
 var autoInstances = /* @__PURE__ */ new WeakMap();
 function create(target, options = {}) {
   return new YellowVSLPlayer(target, options);

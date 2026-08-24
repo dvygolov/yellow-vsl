@@ -600,9 +600,12 @@ export class YellowVSLPlayer {
 
   _toggleFullscreen() {
     if (document.fullscreenElement === this.dom.root) {
-      document.exitFullscreen?.();
+      const result = document.exitFullscreen?.();
+      result?.then?.(() => this._updateFullscreenButton());
     } else {
-      this.dom.root.requestFullscreen?.().catch((error) => this._emit("error", { code: "fullscreen", message: error.message }));
+      this.dom.root.requestFullscreen?.()
+        .then(() => this._updateFullscreenButton())
+        .catch((error) => this._emit("error", { code: "fullscreen", message: error.message }));
     }
   }
 
