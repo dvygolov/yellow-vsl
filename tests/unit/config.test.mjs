@@ -1,0 +1,30 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { normalizeOptions } from "../../src/config.js";
+
+test("конфигурация по умолчанию включает Smart Progress и Smart Autoplay", () => {
+  const options = normalizeOptions({ video: "M7lc1UVf-VE" });
+  assert.equal(options.progress.mode, "smart");
+  assert.deepEqual(options.progress.points, [[0, 0], [0.1, 0.3], [0.5, 0.75], [1, 1]]);
+  assert.equal(options.playback.autoplay, "smart");
+  assert.equal(options.playback.noSeek, "forward");
+  assert.equal(options.playback.resume, "ask");
+});
+
+test("start/end, rate, timed CTA и hooks нормализуются", () => {
+  const options = normalizeOptions({
+    video: "M7lc1UVf-VE",
+    playback: { start: 15, end: 10, rate: 4, autoplay: false },
+    progress: { mode: "real" },
+    ctas: [{ start: 9, end: 4, placement: "wrong", text: "CTA" }],
+    hooks: [{ id: "hook", start: -2, end: 3, placement: "above" }]
+  });
+  assert.equal(options.playback.start, 15);
+  assert.equal(options.playback.end, 15);
+  assert.equal(options.playback.rate, 2);
+  assert.equal(options.playback.autoplay, false);
+  assert.equal(options.progress.mode, "real");
+  assert.deepEqual(options.ctas[0], { start: 9, end: 9, placement: "below", text: "CTA", id: "cta-1" });
+  assert.equal(options.hooks[0].start, 0);
+  assert.equal(options.hooks[0].placement, "above");
+});

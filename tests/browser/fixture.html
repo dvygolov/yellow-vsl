@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>YellowVSL browser fixture</title>
+  <style>
+    body { margin: 0; min-height: 2400px; font-family: sans-serif; }
+    #main, #advanced, #second, #popup { width: 640px; max-width: 100%; }
+    #offer { padding: 20px; }
+    .spacer { height: 1200px; }
+  </style>
+</head>
+<body>
+  <div id="main" data-yellow-vsl data-video="https://youtu.be/M7lc1UVf-VE" data-sticky="true"></div>
+  <div id="offer" hidden>Offer</div>
+  <div id="advanced"></div>
+  <div id="second"></div>
+  <button id="open-popup">Open</button>
+  <div id="popup"></div>
+  <div class="spacer"></div>
+  <script src="/dist/yellow-vsl.js"></script>
+</body>
+</html>

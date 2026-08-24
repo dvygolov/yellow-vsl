@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>YellowVSL — демонстрация</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #0b0c0f; color: #fff; }
+    body { margin: 0; }
+    main { width: min(920px, calc(100% - 32px)); margin: 0 auto; padding: 50px 0 100vh; }
+    h1 { color: #ffd400; font-size: clamp(34px, 7vw, 64px); margin-bottom: 8px; }
+    .lead { color: #b8bbc4; font-size: 18px; margin: 0 0 32px; }
+    .offer { margin-top: 20px; padding: 24px; color: #111; background: #ffd400; border-radius: 14px; }
+    .toolbar { display: flex; gap: 10px; margin: 24px 0; }
+    .toolbar button { padding: 12px 18px; border: 0; border-radius: 10px; font-weight: 800; cursor: pointer; }
+    #event-log { margin-top: 28px; padding: 16px; min-height: 100px; color: #b9f6ca; background: #13151a; border-radius: 12px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>YellowVSL</h1>
+    <p class="lead">Vanilla-JS VSL-плеер поверх официального YouTube IFrame API.</p>
+
+    <div id="main-player"></div>
+    <section id="offer" class="offer" hidden>
+      <strong>Предложение открыто.</strong> В реальном лендинге здесь размещаются цена, гарантия, FAQ и кнопка покупки.
+    </section>
+
+    <div class="toolbar">
+      <button id="open-popup" type="button">Открыть popup-версию</button>
+    </div>
+    <div id="popup-player"></div>
+    <pre id="event-log" aria-live="polite">События YellowVSL появятся здесь.</pre>
+  </main>
+
+  <script src="../dist/yellow-vsl.js"></script>
+  <script>
+    const video = "https://www.youtube.com/watch?v=M7lc1UVf-VE";
+    window.mainPlayer = YellowVSL.create("#main-player", {
+      video,
+      sticky: true,
+      hooks: [
+        { start: 3, end: 8, text: "Mini-hook: дальше будет самое важное", placement: "above" }
+      ],
+      ctas: [
+        { id: "demo-offer", start: 12, text: "Открыть предложение", reveal: "#offer", persist: true }
+      ]
+    });
+
+    window.popupPlayer = YellowVSL.create("#popup-player", {
+      video,
+      popup: { trigger: "#open-popup" },
+      playback: { autoplay: false }
+    });
+
+    const log = document.querySelector("#event-log");
+    for (const name of ["ready", "play", "pause", "progress", "resume", "complete", "cta-show", "cta-click", "error"]) {
+      document.addEventListener(`yellowvsl:${name}`, (event) => {
+        if (name === "progress" && Math.floor(event.detail.currentTime) % 5 !== 0) return;
+        log.textContent = `${name}: ${JSON.stringify({
+          videoId: event.detail.videoId,
+          currentTime: Math.round(event.detail.currentTime),
+          maxWatched: Math.round(event.detail.maxWatched),
+          cta: event.detail.cta,
+          code: event.detail.code
+        })}\n${log.textContent}`;
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+{
+  "name": "yellow-vsl",
+  "version": "1.0.0",
+  "description": "Бесплатный VSL-плеер для YouTube на чистом JavaScript",
+  "type": "module",
+  "license": "MIT",
+  "author": "Yellow Web",
+  "homepage": "https://github.com/dvygolov/yellow-vsl#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dvygolov/yellow-vsl.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dvygolov/yellow-vsl/issues"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "main": "dist/yellow-vsl.js",
+  "module": "dist/yellow-vsl.esm.js",
+  "exports": {
+    ".": {
+      "import": "./dist/yellow-vsl.esm.js",
+      "default": "./dist/yellow-vsl.js"
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "npm run build && npm run test:unit && npm run test:browser",
+    "test:unit": "node --test tests/unit/*.test.mjs",
+    "test:browser": "node tests/browser/run.mjs",
+    "test:live": "node tests/live/run.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.9",
+    "playwright": "^1.55.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
