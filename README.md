@@ -2,6 +2,8 @@
 
 Бесплатный VSL-плеер для YouTube на чистом JavaScript. YellowVSL добавляет Smart Autoplay, Smart Progress, запрет перехода вперёд, продолжение просмотра, CTA, mini-hooks, popup и sticky-режим — без собственного видеохостинга, backend и runtime-зависимостей.
 
+**Сайт с живыми примерами:** [yellowvsl.pages.dev](https://yellowvsl.pages.dev/)
+
 ## Быстрый старт
 
 ```html
@@ -194,12 +196,15 @@ YellowVSL использует официальный YouTube IFrame Player API 
 ```bash
 npm install
 npm run build
+npm run build:site
 npm run test:unit
 npm run test:browser
 npm run test:live
 ```
 
 `npm test` собирает проект и запускает unit-тесты и детерминированные браузерные тесты в Chromium, Firefox и WebKit. Live smoke-test вынесен отдельно, поскольку зависит от доступности YouTube.
+
+Каталог `site/` содержит исходники публичного лендинга, а `npm run build:site` создаёт готовый к публикации `site-dist/`. Workflow `.github/workflows/pages.yml` после каждого push в `main` публикует проверенную сборку на Cloudflare Pages.
 
 Для прямого скачивания используйте файлы из [GitHub Releases](https://github.com/dvygolov/yellow-vsl/releases) или `dist/yellow-vsl.min.js` из нужного версионного тега. Для продакшена фиксируйте версию в CDN-адресе, а не подключайте ветку `main`.
 

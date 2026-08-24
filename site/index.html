@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffd400">
+  <meta name="description" content="YellowVSL — бесплатный VSL-плеер для YouTube на чистом JavaScript: Smart Autoplay, Smart Progress, CTA, resume, popup и sticky.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="YellowVSL — бесплатный VSL-плеер на YouTube">
+  <meta property="og:description" content="Свой VSL-интерфейс, Smart Progress, CTA и Continue Watching без оплаты за видеотрафик.">
+  <meta property="og:url" content="https://yellowvsl.pages.dev/">
+  <meta property="og:image" content="https://yellowvsl.pages.dev/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="YellowVSL — бесплатный VSL-плеер на YouTube">
+  <meta name="twitter:description" content="Vanilla JS, YouTube backend, MIT. Живые примеры и готовый CDN-сниппет.">
+  <meta name="twitter:image" content="https://yellowvsl.pages.dev/og.png">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ffd400'/%3E%3Cpath d='M19 16h10l5 12 5-12h10L38 38v10H27V38z' fill='%23111216'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./styles.css">
+  <title>YellowVSL — бесплатный VSL-плеер на YouTube</title>
+</head>
+<body>
+  <a class="skip-link" href="#content">Перейти к содержанию</a>
+
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="YellowVSL — на главную"><span class="brand-mark">Y</span><span>YellowVSL</span></a>
+    <nav aria-label="Основная навигация">
+      <a href="#features">Возможности</a>
+      <a href="#examples">Примеры</a>
+      <a href="#install">Установка</a>
+      <a href="#download">Скачать</a>
+    </nav>
+    <a class="button button--small" href="https://github.com/dvygolov/yellow-vsl" target="_blank" rel="noopener">GitHub</a>
+  </header>
+
+  <main id="content">
+    <section id="top" class="hero section">
+      <div class="hero-copy">
+        <p class="eyebrow">Open source · MIT · v__VERSION__</p>
+        <h1>VSL-плеер на YouTube.<br><span>Без оплаты за просмотры.</span></h1>
+        <p class="hero-lead">Собственный интерфейс, Smart Autoplay, Smart Progress, CTA и продолжение просмотра. Один JavaScript-файл, никакого кабинета и серверной части.</p>
+        <div class="hero-actions">
+          <a class="button button--primary" href="#examples">Открыть живые примеры</a>
+          <a class="button" href="https://github.com/dvygolov/yellow-vsl/releases/latest/download/yellow-vsl.min.js">Скачать __VERSION__</a>
+        </div>
+        <ul class="hero-facts" aria-label="Ключевые свойства">
+          <li><strong>0 ₽</strong><span>за видеотрафик</span></li>
+          <li><strong>38 КБ</strong><span>minified-сборка</span></li>
+          <li><strong>0</strong><span>runtime-зависимостей</span></li>
+        </ul>
+      </div>
+
+      <div class="hero-demo" aria-label="Живой пример YellowVSL">
+        <div class="demo-window">
+          <div class="window-bar"><span></span><span></span><span></span><strong>Живой YouTube backend</strong></div>
+          <div id="hero-player"></div>
+        </div>
+        <div class="demo-note"><span class="live-dot"></span> Это настоящий плеер, а не картинка</div>
+      </div>
+    </section>
+
+    <section class="ticker" aria-label="Возможности">
+      <div>Smart Autoplay</div><div>Smart Progress</div><div>No-seek forward</div><div>Continue Watching</div><div>CTA & hooks</div><div>Popup & sticky</div>
+    </section>
+
+    <section id="features" class="section block">
+      <div class="section-heading">
+        <p class="eyebrow">Основные возможности</p>
+        <h2>Всё, что нужно VSL-лендингу.<br>Без лишней платформы вокруг.</h2>
+        <p>YellowVSL использует официальный YouTube IFrame Player API и добавляет управляемую воронку снаружи видеокадра.</p>
+      </div>
+      <div class="feature-grid">
+        <article class="feature-card feature-card--wide">
+          <span class="feature-number">01</span>
+          <h3>Smart Progress включён по умолчанию</h3>
+          <p>Первые 10% просмотра занимают 30% визуальной шкалы, 50% превращаются в 75%, а окончание всегда остаётся честными 100%.</p>
+          <div class="curve" aria-label="Пример кривой Smart Progress"><span style="--x:0%;--y:0%">0</span><span style="--x:10%;--y:30%">10→30</span><span style="--x:50%;--y:75%">50→75</span><span style="--x:100%;--y:100%">100</span></div>
+        </article>
+        <article class="feature-card">
+          <span class="feature-number">02</span>
+          <h3>Назад можно. Вперёд нельзя.</h3>
+          <p>Посетитель возвращается в уже просмотренную область, но не перескакивает питч.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-number">03</span>
+          <h3>Smart Autoplay</h3>
+          <p>Автозапуск без звука, понятное предложение включить звук и возврат к началу после клика.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-number">04</span>
+          <h3>CTA и раскрытие лендинга</h3>
+          <p>Покажите кнопку, mini-hook или любой блок страницы в нужную секунду медиавремени.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-number">05</span>
+          <h3>Continue Watching</h3>
+          <p>Позиция хранится локально 30 дней. При возвращении зритель выбирает: продолжить или начать сначала.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-number">06</span>
+          <h3>Popup, sticky и fullscreen</h3>
+          <p>Закрытие или скрытие плеера всегда ставит видео на паузу. Фоновое воспроизведение исключено.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="examples" class="section block block--examples">
+      <div class="section-heading">
+        <p class="eyebrow">Живые примеры</p>
+        <h2>Проверьте функции прямо здесь</h2>
+        <p>Все примеры работают на одном публичном YouTube-видео и текущей production-сборке YellowVSL.</p>
+      </div>
+
+      <div class="examples-grid">
+        <article class="example-card example-card--main">
+          <div class="example-head">
+            <div><span class="example-kicker">Основной VSL</span><h3>CTA, mini-hook и Smart Progress</h3></div>
+            <span class="status-pill">0–60 сек</span>
+          </div>
+          <div id="example-player"></div>
+          <div class="example-actions">
+            <button id="example-unmute" class="button button--primary" type="button">Включить звук + сначала</button>
+            <button id="example-forward" class="button" type="button">Попробовать +60 сек</button>
+            <button id="example-back" class="button" type="button">Назад на 2 сек</button>
+          </div>
+          <div id="example-result" class="example-result">На второй секунде появится mini-hook, на шестой — CTA и оффер.</div>
+          <div id="example-offer" class="offer" hidden><strong>Оффер открыт</strong><span>Этот блок был скрыт до шестой секунды медиавремени.</span></div>
+        </article>
+
+        <article class="example-card example-card--vertical">
+          <div class="example-head">
+            <div><span class="example-kicker">Фрагмент</span><h3>9:16 · 10–16 сек · 1.5× · loop</h3></div>
+          </div>
+          <div class="vertical-demo"><div id="vertical-player"></div></div>
+          <button id="vertical-start" class="button button--primary button--full" type="button">Запустить фрагмент</button>
+        </article>
+
+        <article class="example-card example-card--popup">
+          <div>
+            <span class="example-kicker">Popup</span>
+            <h3>Видео поверх страницы</h3>
+            <p>При открытии popup другие экземпляры автоматически ставятся на паузу. Закрытие останавливает и сам popup.</p>
+          </div>
+          <button id="open-popup" class="button button--primary" type="button">Открыть popup-плеер</button>
+          <div id="popup-player"></div>
+        </article>
+
+        <article class="example-card example-card--events">
+          <div class="example-head">
+            <div><span class="example-kicker">События</span><h3>Аналитика остаётся вашей</h3></div>
+            <span id="event-count" class="status-pill">0</span>
+          </div>
+          <p>YellowVSL ничего не отправляет сам. События всплывают в DOM, а вы подключаете нужную аналитику.</p>
+          <pre id="event-log" class="event-log">Ожидание событий…</pre>
+        </article>
+      </div>
+    </section>
+
+    <section id="install" class="section block install-block">
+      <div class="section-heading">
+        <p class="eyebrow">Установка за минуту</p>
+        <h2>Вставьте URL видео и один script</h2>
+        <p>Сниппет привязан к стабильной версии. Обновление сайта не сломает уже работающий лендинг.</p>
+      </div>
+      <div class="code-panel">
+        <div class="code-top"><span>HTML</span><button id="copy-code" type="button">Копировать</button></div>
+        <pre><code id="install-code">&lt;div
+  data-yellow-vsl
+  data-video="https://youtu.be/VIDEO_ID"&gt;
+&lt;/div&gt;
+&lt;script defer
+  src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v__VERSION__/dist/yellow-vsl.min.js"&gt;
+&lt;/script&gt;</code></pre>
+      </div>
+      <div class="install-notes">
+        <div><strong>Поддерживаемые ссылки</strong><span>youtube.com, youtu.be, Shorts, embed и чистый ID</span></div>
+        <div><strong>Несколько плееров</strong><span>Можно размещать сколько угодно экземпляров на одной странице</span></div>
+        <div><strong>Настройка дизайна</strong><span>CSS-переменные, цвета, радиус и 16:9 / 9:16</span></div>
+      </div>
+    </section>
+
+    <section id="download" class="section download-block">
+      <div>
+        <p class="eyebrow">Последний стабильный релиз</p>
+        <h2>Скачайте файл или подключите CDN</h2>
+        <p>Production-сборка публикуется через GitHub Releases. Исходный код открыт под лицензией MIT.</p>
+      </div>
+      <div class="download-actions">
+        <a class="button button--primary" href="https://github.com/dvygolov/yellow-vsl/releases/latest/download/yellow-vsl.min.js">Скачать minified</a>
+        <a class="button" href="https://github.com/dvygolov/yellow-vsl/releases/latest/download/yellow-vsl.js">Читаемая IIFE</a>
+        <a class="button" href="https://github.com/dvygolov/yellow-vsl/releases/latest/download/yellow-vsl.esm.js">ESM-сборка</a>
+      </div>
+    </section>
+
+    <section class="section boundaries">
+      <div class="section-heading">
+        <p class="eyebrow">Честные ограничения</p>
+        <h2>YouTube остаётся YouTube</h2>
+      </div>
+      <div class="boundary-grid">
+        <p>YellowVSL использует официальный IFrame Player API и не перекрывает видеокадр собственными кнопками.</p>
+        <p>Полное удаление логотипа, ссылок, рекламы и других элементов YouTube не обещается.</p>
+        <p>Запрет перехода вперёд рассчитан на обычного посетителя, но не является DRM.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <a class="brand" href="#top"><span class="brand-mark">Y</span><span>YellowVSL</span></a>
+    <p>Бесплатный VSL-плеер от <a href="https://yellowweb.top" target="_blank" rel="noopener">Жёлтого Веба</a>.</p>
+    <div><a href="https://github.com/dvygolov/yellow-vsl" target="_blank" rel="noopener">GitHub</a><a href="https://github.com/dvygolov/yellow-vsl/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a></div>
+  </footer>
+
+  <script src="./yellow-vsl.min.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

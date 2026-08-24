@@ -29,10 +29,12 @@
   },
   "scripts": {
     "build": "node scripts/build.mjs",
+    "build:site": "npm run build && node scripts/build-site.mjs",
     "demo": "node demo/server.mjs",
-    "test": "npm run build && npm run test:unit && npm run test:browser",
+    "test": "npm run build:site && npm run test:unit && npm run test:browser && npm run test:site",
     "test:unit": "node --test tests/unit/*.test.mjs",
     "test:browser": "node tests/browser/run.mjs",
+    "test:site": "node tests/site/run.mjs",
     "test:live": "node tests/live/run.mjs"
   },
   "devDependencies": {

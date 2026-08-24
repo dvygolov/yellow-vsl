@@ -2,5 +2,6 @@ node_modules/
 .playwright-cli/
 playwright-report/
 test-results/
+site-dist/
 .DS_Store
 Thumbs.db
