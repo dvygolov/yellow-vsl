@@ -50,6 +50,12 @@ export class YellowVSLPlayer {
     this.saveAt = 0;
     this.progressEventAt = 0;
     this.seekGeneration = 0;
+    this.stageRevealed = false;
+    this.stageWarmupTimer = null;
+    this.stageWarmupWasMuted = null;
+    this.stageWarmupBypassNextPlay = false;
+    this.adapterMountPromise = null;
+    this.pendingPlay = false;
     this.completed = false;
     this.lastActiveAt = 0;
     this.readyState = false;
@@ -83,7 +89,13 @@ export class YellowVSLPlayer {
     this._bindLifecycle();
     instances.add(this);
 
-    this.ready = this._mountAdapter();
+    this.ready = this.options.popup ? Promise.resolve(this) : this._ensureAdapterMounted();
+  }
+
+  _ensureAdapterMounted() {
+    if (this.adapterMountPromise) return this.adapterMountPromise;
+    this.adapterMountPromise = this._mountAdapter();
+    return this.adapterMountPromise;
   }
 
   async _mountAdapter() {
@@ -131,7 +143,27 @@ export class YellowVSLPlayer {
     const message = element("div", "yvsl-message", { hidden: true, "aria-live": "polite" });
     const stage = element("div", "yvsl-stage");
     const playerHost = element("div", "yvsl-player-host", { id: `${this.id}-player` });
-    stage.append(playerHost);
+    const stageInteraction = element("div", "yvsl-stage-interaction", {
+      role: this.options.stage.clickToToggle ? "button" : null,
+      tabindex: this.options.stage.clickToToggle ? "0" : null,
+      "aria-label": this.options.stage.clickToToggle ? locale.play : null
+    });
+    const poster = element("div", "yvsl-poster", { hidden: this.options.stage.poster === false });
+    const posterImage = element("img", "yvsl-poster__image", {
+      src: this._posterUrl(),
+      alt: "",
+      draggable: "false"
+    });
+    const posterPlay = element("span", "yvsl-poster__play", { text: "▶", "aria-hidden": "true" });
+    poster.append(posterImage, posterPlay);
+
+    const stageOverlay = element("div", "yvsl-stage-overlay");
+    const topLeft = element("div", "yvsl-zone yvsl-zone--corner yvsl-zone--top-left");
+    const topRight = element("div", "yvsl-zone yvsl-zone--corner yvsl-zone--top-right");
+    const bottomLeft = element("div", "yvsl-zone yvsl-zone--corner yvsl-zone--bottom-left");
+    const bottomRight = element("div", "yvsl-zone yvsl-zone--corner yvsl-zone--bottom-right");
+    stageOverlay.append(topLeft, topRight, bottomLeft, bottomRight);
+    stage.append(playerHost, stageInteraction, poster, stageOverlay);
 
     const error = element("div", "yvsl-error", { hidden: true, role: "alert" });
     const controls = element("div", "yvsl-controls");
@@ -161,7 +193,7 @@ export class YellowVSLPlayer {
     root.append(stickyClose, above, message, stage, error, controls, below);
     this.mount.replaceChildren(sentinel, root);
 
-    this.dom = { root, sentinel, above, message, stage, playerHost, error, controls, play, volume, progress, time, speed, fullscreen, stickyClose, below };
+    this.dom = { root, sentinel, above, message, stage, playerHost, stageInteraction, poster, posterImage, posterPlay, stageOverlay, topLeft, topRight, bottomLeft, bottomRight, error, controls, play, volume, progress, time, speed, fullscreen, stickyClose, below };
 
     this._listen(play, "click", () => this.playerState === YT_STATE.PLAYING ? this.pause() : this.play());
     this._listen(volume, "click", () => this.adapter?.isMuted?.() ? this.unmute(true) : this.mute());
@@ -170,6 +202,25 @@ export class YellowVSLPlayer {
     this._listen(fullscreen, "click", () => this._toggleFullscreen());
     this._listen(stickyClose, "click", () => this._dismissSticky());
     this._listen(document, "fullscreenchange", () => this._updateFullscreenButton());
+    if (this.options.stage.clickToToggle) {
+      this._listen(stageInteraction, "click", () => this.playerState === YT_STATE.PLAYING ? this.pause() : this.play());
+      this._listen(stageInteraction, "keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        this.playerState === YT_STATE.PLAYING ? this.pause() : this.play();
+      });
+    }
+    if (this.options.stage.poster === "auto") {
+      this._listen(posterImage, "error", () => {
+        posterImage.src = `https://i.ytimg.com/vi/${this.videoId}/hqdefault.jpg`;
+      }, { once: true });
+    }
+  }
+
+  _posterUrl() {
+    if (this.options.stage.poster === false) return null;
+    if (this.options.stage.poster === "auto") return `https://i.ytimg.com/vi/${this.videoId}/maxresdefault.jpg`;
+    return toSafeUrl(this.options.stage.poster, location.href);
   }
 
   _button(text, label, extraClass = "") {
@@ -289,6 +340,12 @@ export class YellowVSLPlayer {
     if (this.destroyed) return;
     this.playerState = state;
     if (state === YT_STATE.PLAYING) {
+      if (this.stageWarmupBypassNextPlay) {
+        this.stageWarmupBypassNextPlay = false;
+        this.stageRevealed = true;
+      } else {
+        this._startStageWarmup();
+      }
       this.lastActiveAt = Date.now();
       this.completed = false;
       if (this.options.playback.singlePlayback) {
@@ -299,6 +356,11 @@ export class YellowVSLPlayer {
       this._startTicker();
       this._emit("play");
     } else {
+      if (!(this.stageWarmupBypassNextPlay && state === YT_STATE.BUFFERING)) {
+        this.stageWarmupBypassNextPlay = false;
+        this._cancelStageWarmup();
+        this.stageRevealed = false;
+      }
       this._stopTicker();
       this.timeline.resetClock();
       this._tick();
@@ -347,6 +409,10 @@ export class YellowVSLPlayer {
 
   _tick() {
     if (this.destroyed || !this.adapter || !this.readyState) return;
+    if (this.stageWarmupTimer) {
+      this._updateUi();
+      return;
+    }
     if (!this.timeline.duration) this._refreshDuration();
 
     const observed = this.timeline.observe(this.adapter.getCurrentTime(), {
@@ -402,6 +468,8 @@ export class YellowVSLPlayer {
     this.dom.play.textContent = playing ? "Ⅱ" : "▶";
     this.dom.play.title = playing ? this.options.locale.pause : this.options.locale.play;
     this.dom.play.setAttribute("aria-label", this.dom.play.title);
+    this.dom.stageInteraction.setAttribute("aria-label", this.dom.play.title);
+    this.dom.poster.hidden = this.options.stage.poster === false || (playing && this.stageRevealed);
 
     const muted = this.adapter?.isMuted?.() ?? true;
     this.dom.volume.textContent = muted ? "🔇" : "🔊";
@@ -444,6 +512,42 @@ export class YellowVSLPlayer {
     this.adapter?.setPlaybackRate?.(this.timeline.rate);
   }
 
+  _startStageWarmup() {
+    this._cancelStageWarmup();
+    const delay = this.options.stage.poster === false ? 0 : this.options.stage.revealDelay;
+    if (!delay) {
+      this.stageRevealed = true;
+      return;
+    }
+
+    const returnPosition = this.timeline.current;
+    this.stageRevealed = false;
+    this.stageWarmupWasMuted = this.adapter?.isMuted?.() ?? true;
+    if (!this.stageWarmupWasMuted) this.adapter?.mute?.();
+    this.dom.posterPlay.textContent = "…";
+    this.stageWarmupTimer = window.setTimeout(() => {
+      this.stageWarmupTimer = null;
+      if (this.destroyed || this.playerState !== YT_STATE.PLAYING) return;
+      this.stageWarmupBypassNextPlay = true;
+      this.adapter?.seekTo?.(this.timeline.start + returnPosition);
+      this.timeline.current = returnPosition;
+      this.timeline.resetClock();
+      if (this.stageWarmupWasMuted === false) this.adapter?.unmute?.();
+      this.stageWarmupWasMuted = null;
+      this.stageRevealed = true;
+      this.dom.posterPlay.textContent = "▶";
+      this._updateUi();
+    }, delay);
+  }
+
+  _cancelStageWarmup() {
+    if (this.stageWarmupTimer) window.clearTimeout(this.stageWarmupTimer);
+    this.stageWarmupTimer = null;
+    if (this.stageWarmupWasMuted === false) this.adapter?.unmute?.();
+    this.stageWarmupWasMuted = null;
+    if (this.dom?.posterPlay) this.dom.posterPlay.textContent = "▶";
+  }
+
   _renderTimedItems() {
     for (const item of this.options.hooks) {
       const node = element("p", "yvsl-hook", { text: String(item.text || ""), hidden: true });
@@ -471,7 +575,14 @@ export class YellowVSLPlayer {
   }
 
   _zone(placement) {
-    return placement === "above" ? this.dom.above : this.dom.below;
+    return ({
+      above: this.dom.above,
+      below: this.dom.below,
+      "top-left": this.dom.topLeft,
+      "top-right": this.dom.topRight,
+      "bottom-left": this.dom.bottomLeft,
+      "bottom-right": this.dom.bottomRight
+    })[placement] || this.dom.below;
   }
 
   _prepareReveal(item) {
@@ -539,7 +650,8 @@ export class YellowVSLPlayer {
   _setupPopup() {
     const popup = this.options.popup;
     if (!popup) return;
-    this.dom.root.hidden = true;
+    this.dom.root.classList.add("yvsl-root--popup-idle");
+    this.dom.root.setAttribute("aria-hidden", "true");
     if (typeof popup === "object" && popup.trigger) {
       for (const trigger of document.querySelectorAll(popup.trigger)) {
         this._listen(trigger, "click", (event) => {
@@ -657,11 +769,25 @@ export class YellowVSLPlayer {
   }
 
   play() {
-    this.adapter?.play();
+    if (this.options.popup && !this.popupOpen) this.open();
+    if (!this.readyState) {
+      this.pendingPlay = true;
+      this.ready = this._ensureAdapterMounted();
+      this.ready.then(() => {
+        if (!this.destroyed && this.pendingPlay) {
+          this.pendingPlay = false;
+          this.adapter?.play();
+        }
+      }).catch(() => { this.pendingPlay = false; });
+      return this;
+    }
+    this.pendingPlay = false;
+    this.adapter.play();
     return this;
   }
 
   pause() {
+    this.pendingPlay = false;
     this.adapter?.pause();
     return this;
   }
@@ -704,22 +830,28 @@ export class YellowVSLPlayer {
     }
     this.popupOpen = true;
     this.dom.root.classList.remove("yvsl-root--sticky");
-    this.dom.root.hidden = false;
+    this.dom.root.classList.remove("yvsl-root--popup-idle");
+    this.dom.root.removeAttribute("aria-hidden");
     this.dom.popupPanel.append(this.dom.root);
     this.dom.popupBackdrop.hidden = false;
     document.body.style.overflow = "hidden";
     this.dom.popupClose.focus();
+    this.ready = this._ensureAdapterMounted();
     return this;
   }
 
   close() {
     if (!this.popupOpen) return this;
+    this.pendingPlay = false;
     this.pause();
     this.popupOpen = false;
     this.mount.append(this.dom.root);
     this.dom.popupBackdrop.hidden = true;
     document.body.style.overflow = "";
-    if (this.options.popup) this.dom.root.hidden = true;
+    if (this.options.popup) {
+      this.dom.root.classList.add("yvsl-root--popup-idle");
+      this.dom.root.setAttribute("aria-hidden", "true");
+    }
     this._applySticky();
     return this;
   }
@@ -745,6 +877,7 @@ export class YellowVSLPlayer {
     this._saveProgress();
     this.destroyed = true;
     this._stopTicker();
+    this._cancelStageWarmup();
     this.stickyObserver?.disconnect();
     this.adapter?.destroy();
     for (const dispose of this.cleanup.splice(0)) dispose();

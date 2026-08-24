@@ -12,7 +12,7 @@
   data-video="https://youtu.be/M7lc1UVf-VE">
 </div>
 
-<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.1.0/dist/yellow-vsl.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.2.0/dist/yellow-vsl.min.js"></script>
 ```
 
 По умолчанию включены:
@@ -22,6 +22,7 @@
 - возврат в уже просмотренную часть и блокировка перехода вперёд;
 - предложение продолжить просмотр при следующем посещении;
 - play/pause, звук и fullscreen во внешней панели.
+- собственная обложка и интерактивный слой: наведение не вызывает штатные кнопки YouTube поверх кадра.
 
 ## Рабочее локальное демо
 
@@ -52,7 +53,7 @@ npm run demo
   Этот блок откроется после просмотра питча.
 </section>
 
-<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.1.0/dist/yellow-vsl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.2.0/dist/yellow-vsl.min.js"></script>
 <script>
   const player = YellowVSL.create("#sales-video", {
     video: "https://www.youtube.com/watch?v=M7lc1UVf-VE",
@@ -88,7 +89,7 @@ npm run demo
         url: "https://example.com/checkout",
         target: "_blank",
         reveal: "#offer",
-        placement: "below",
+        placement: "bottom-right",
         persist: true
       }
     ],
@@ -98,6 +99,16 @@ npm run demo
 ```
 
 Все значения `start`, `end`, время CTA и hooks считаются относительно начала показываемого фрагмента. Изменение скорости воспроизведения не меняет медиавремя этих событий.
+
+CTA и hooks можно размещать снаружи кадра (`above`, `below`) или поверх видео: `top-left`, `top-right`, `bottom-left`, `bottom-right`.
+
+```js
+ctas: [{
+  start: 30,
+  text: "Открыть предложение",
+  placement: "bottom-right"
+}]
+```
 
 ## Декларативные атрибуты
 
@@ -163,6 +174,7 @@ const sticky = YellowVSL.create("#sticky-video", {
 ```
 
 Закрытие popup или sticky-плеера ставит видео на паузу. Скрытое фоновое воспроизведение не используется.
+YouTube-плеер внутри popup создаётся при первом открытии, поэтому запуск через внешнюю кнопку работает без промежуточного штатного интерфейса YouTube.
 
 ## Оформление
 
@@ -178,18 +190,6 @@ theme: {
   radius: "14px"
 }
 ```
-
-## Ограничения YouTube
-
-YellowVSL использует официальный YouTube IFrame Player API с `controls=0` и `disablekb=1`. Собственные элементы находятся рядом с iframe и не перекрывают его.
-
-- Нельзя гарантировать полное отсутствие логотипа, ссылок, рекламы или других элементов YouTube.
-- Запрет перехода вперёд рассчитан на обычного посетителя и не является DRM.
-- Приватное, удалённое, возрастное или запрещённое для embed видео может не воспроизводиться.
-- Error 153 означает, что YouTube не получил HTTP Referer или другой идентификатор клиента. YellowVSL показывает для него отдельную инструкцию; локальное демо нужно запускать через HTTP-команду выше.
-- Автозапуск со звуком блокируется современными браузерами, поэтому Smart Autoplay сначала работает без звука.
-
-[Параметры IFrame Player](https://developers.google.com/youtube/player_parameters) · [Правила YouTube API](https://developers.google.com/youtube/terms/developer-policies)
 
 ## Разработка
 

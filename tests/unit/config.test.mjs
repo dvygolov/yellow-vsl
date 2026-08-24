@@ -16,15 +16,23 @@ test("start/end, rate, timed CTA и hooks нормализуются", () => {
     video: "M7lc1UVf-VE",
     playback: { start: 15, end: 10, rate: 4, autoplay: false },
     progress: { mode: "real" },
-    ctas: [{ start: 9, end: 4, placement: "wrong", text: "CTA" }],
-    hooks: [{ id: "hook", start: -2, end: 3, placement: "above" }]
+    ctas: [{ start: 9, end: 4, placement: "bottom-right", text: "CTA" }],
+    hooks: [{ id: "hook", start: -2, end: 3, placement: "top-left" }]
   });
   assert.equal(options.playback.start, 15);
   assert.equal(options.playback.end, 15);
   assert.equal(options.playback.rate, 2);
   assert.equal(options.playback.autoplay, false);
   assert.equal(options.progress.mode, "real");
-  assert.deepEqual(options.ctas[0], { start: 9, end: 9, placement: "below", text: "CTA", id: "cta-1" });
+  assert.deepEqual(options.ctas[0], { start: 9, end: 9, placement: "bottom-right", text: "CTA", id: "cta-1" });
   assert.equal(options.hooks[0].start, 0);
-  assert.equal(options.hooks[0].placement, "above");
+  assert.equal(options.hooks[0].placement, "top-left");
+  assert.equal(options.stage.poster, "auto");
+  assert.equal(options.stage.clickToToggle, true);
+  assert.equal(options.stage.revealDelay, 0);
+});
+
+test("неизвестный placement возвращается к below", () => {
+  const options = normalizeOptions({ video: "M7lc1UVf-VE", ctas: [{ placement: "center" }] });
+  assert.equal(options.ctas[0].placement, "below");
 });

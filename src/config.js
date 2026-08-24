@@ -42,6 +42,11 @@ export const DEFAULT_OPTIONS = Object.freeze({
     progress: true,
     speed: false
   }),
+  stage: Object.freeze({
+    poster: "auto",
+    clickToToggle: true,
+    revealDelay: 0
+  }),
   aspectRatio: "16/9",
   sticky: false,
   popup: false,
@@ -55,7 +60,8 @@ function normalizeTimedItem(item, index, kind) {
   const start = Math.max(0, Number(item?.start) || 0);
   const rawEnd = item?.end == null ? Infinity : Number(item.end);
   const end = Number.isFinite(rawEnd) ? Math.max(start, rawEnd) : Infinity;
-  const placement = item?.placement === "above" ? "above" : "below";
+  const placements = ["above", "below", "top-left", "top-right", "bottom-left", "bottom-right"];
+  const placement = placements.includes(item?.placement) ? item.placement : "below";
   return {
     ...item,
     id: String(item?.id || `${kind}-${index + 1}`),
@@ -81,6 +87,11 @@ export function normalizeOptions(options = {}) {
   const controls = { ...DEFAULT_OPTIONS.controls, ...(options.controls || {}) };
   if (progress.mode === "hidden") controls.progress = false;
 
+  const stage = { ...DEFAULT_OPTIONS.stage, ...(options.stage || {}) };
+  stage.poster = stage.poster === false ? false : (typeof stage.poster === "string" ? stage.poster : "auto");
+  stage.clickToToggle = stage.clickToToggle !== false;
+  stage.revealDelay = clamp(stage.revealDelay, 0, 10000);
+
   return {
     ...DEFAULT_OPTIONS,
     ...options,
@@ -88,6 +99,7 @@ export function normalizeOptions(options = {}) {
     playback,
     progress,
     controls,
+    stage,
     aspectRatio: options.aspectRatio || DEFAULT_OPTIONS.aspectRatio,
     aspectRatioValue: parseAspectRatio(options.aspectRatio || DEFAULT_OPTIONS.aspectRatio),
     ctas: Array.isArray(options.ctas)
@@ -105,6 +117,7 @@ export function optionsFromDataset(element) {
   const dataset = element.dataset;
   const playback = {};
   const progress = {};
+  const stage = {};
 
   if (dataset.autoplay === "false") playback.autoplay = false;
   if (dataset.resume === "false") playback.resume = false;
@@ -115,12 +128,14 @@ export function optionsFromDataset(element) {
   if (dataset.rate != null) playback.rate = Number(dataset.rate);
   if (dataset.noSeek === "false") playback.noSeek = false;
   if (dataset.progress) progress.mode = dataset.progress;
+  if (dataset.revealDelay != null) stage.revealDelay = Number(dataset.revealDelay);
 
   return {
     video: dataset.video,
     aspectRatio: dataset.aspectRatio,
     playback,
     progress,
+    stage,
     sticky: dataset.sticky === "true",
     popup: dataset.popupTrigger ? { trigger: dataset.popupTrigger } : false
   };

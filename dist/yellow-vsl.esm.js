@@ -1,4 +1,4 @@
-/*! YellowVSL v1.1.0 | MIT License | https://github.com/dvygolov/yellow-vsl */
+/*! YellowVSL v1.2.0 | MIT License | https://github.com/dvygolov/yellow-vsl */
 
 // src/utils.js
 var DEFAULT_PROGRESS_POINTS = Object.freeze([
@@ -163,6 +163,11 @@ var DEFAULT_OPTIONS = Object.freeze({
     progress: true,
     speed: false
   }),
+  stage: Object.freeze({
+    poster: "auto",
+    clickToToggle: true,
+    revealDelay: 0
+  }),
   aspectRatio: "16/9",
   sticky: false,
   popup: false,
@@ -175,7 +180,8 @@ function normalizeTimedItem(item, index, kind) {
   const start = Math.max(0, Number(item?.start) || 0);
   const rawEnd = item?.end == null ? Infinity : Number(item.end);
   const end = Number.isFinite(rawEnd) ? Math.max(start, rawEnd) : Infinity;
-  const placement = item?.placement === "above" ? "above" : "below";
+  const placements = ["above", "below", "top-left", "top-right", "bottom-left", "bottom-right"];
+  const placement = placements.includes(item?.placement) ? item.placement : "below";
   return {
     ...item,
     id: String(item?.id || `${kind}-${index + 1}`),
@@ -197,6 +203,10 @@ function normalizeOptions(options = {}) {
   progress.points = validateProgressPoints(progress.points || DEFAULT_PROGRESS_POINTS);
   const controls = { ...DEFAULT_OPTIONS.controls, ...options.controls || {} };
   if (progress.mode === "hidden") controls.progress = false;
+  const stage = { ...DEFAULT_OPTIONS.stage, ...options.stage || {} };
+  stage.poster = stage.poster === false ? false : typeof stage.poster === "string" ? stage.poster : "auto";
+  stage.clickToToggle = stage.clickToToggle !== false;
+  stage.revealDelay = clamp(stage.revealDelay, 0, 1e4);
   return {
     ...DEFAULT_OPTIONS,
     ...options,
@@ -204,6 +214,7 @@ function normalizeOptions(options = {}) {
     playback,
     progress,
     controls,
+    stage,
     aspectRatio: options.aspectRatio || DEFAULT_OPTIONS.aspectRatio,
     aspectRatioValue: parseAspectRatio(options.aspectRatio || DEFAULT_OPTIONS.aspectRatio),
     ctas: Array.isArray(options.ctas) ? options.ctas.map((item, index) => normalizeTimedItem(item, index, "cta")) : [],
@@ -216,6 +227,7 @@ function optionsFromDataset(element2) {
   const dataset = element2.dataset;
   const playback = {};
   const progress = {};
+  const stage = {};
   if (dataset.autoplay === "false") playback.autoplay = false;
   if (dataset.resume === "false") playback.resume = false;
   if (dataset.resume === "auto") playback.resume = "auto";
@@ -225,11 +237,13 @@ function optionsFromDataset(element2) {
   if (dataset.rate != null) playback.rate = Number(dataset.rate);
   if (dataset.noSeek === "false") playback.noSeek = false;
   if (dataset.progress) progress.mode = dataset.progress;
+  if (dataset.revealDelay != null) stage.revealDelay = Number(dataset.revealDelay);
   return {
     video: dataset.video,
     aspectRatio: dataset.aspectRatio,
     playback,
     progress,
+    stage,
     sticky: dataset.sticky === "true",
     popup: dataset.popupTrigger ? { trigger: dataset.popupTrigger } : false
   };
@@ -316,11 +330,30 @@ var STYLES = `
 .yvsl-root *, .yvsl-root *::before, .yvsl-root *::after { box-sizing: border-box; }
 .yvsl-root button, .yvsl-root select, .yvsl-root input { font: inherit; }
 .yvsl-stage {
+  position: relative;
   width: 100%;
   aspect-ratio: var(--yvsl-aspect, 16 / 9);
+  overflow: hidden;
   background: #000;
 }
-.yvsl-stage > div, .yvsl-stage iframe { width: 100% !important; height: 100% !important; display: block; border: 0; }
+.yvsl-player-host { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; }
+.yvsl-player-host > div, .yvsl-player-host iframe, .yvsl-stage > iframe { width: 100% !important; height: 100% !important; display: block; border: 0; pointer-events: none !important; }
+.yvsl-stage > iframe.yvsl-player-host { top: -1000px !important; bottom: auto !important; height: calc(100% + 2000px) !important; }
+.yvsl-stage-interaction { position: absolute; inset: 0; z-index: 1; }
+.yvsl-stage-interaction[role="button"] { cursor: pointer; }
+.yvsl-stage-interaction:focus-visible { outline: 3px solid color-mix(in srgb, var(--yvsl-accent) 70%, white); outline-offset: -5px; }
+.yvsl-poster { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; overflow: hidden; background: #000; pointer-events: none; }
+.yvsl-poster[hidden] { display: none; }
+.yvsl-poster__image { width: 100%; height: 100%; object-fit: cover; opacity: .78; }
+.yvsl-poster__play { position: absolute; display: grid; place-items: center; width: clamp(58px, 11%, 92px); aspect-ratio: 1; padding-left: .08em; color: #171400; background: var(--yvsl-accent); border-radius: 50%; box-shadow: 0 18px 45px rgba(0,0,0,.38); font-size: clamp(24px, 4vw, 38px); }
+.yvsl-stage-overlay { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.yvsl-zone--corner { position: absolute; display: grid; gap: 8px; width: max-content; max-width: min(46%, 380px); pointer-events: none; }
+.yvsl-zone--corner:empty { display: none; }
+.yvsl-zone--corner .yvsl-cta, .yvsl-zone--corner .yvsl-hook { width: max-content; max-width: 100%; pointer-events: auto; box-shadow: 0 8px 30px rgba(0,0,0,.34); }
+.yvsl-zone--top-left { top: 14px; left: 14px; justify-items: start; }
+.yvsl-zone--top-right { top: 14px; right: 14px; justify-items: end; }
+.yvsl-zone--bottom-left { bottom: 14px; left: 14px; justify-items: start; }
+.yvsl-zone--bottom-right { right: 14px; bottom: 14px; justify-items: end; }
 .yvsl-zone { display: grid; gap: 8px; }
 .yvsl-zone:empty { display: none; }
 .yvsl-zone--above { padding: 12px 14px 0; }
@@ -428,6 +461,7 @@ var STYLES = `
   z-index: 2147483001;
 }
 .yvsl-popup-backdrop[hidden] { display: none; }
+.yvsl-root--popup-idle { position: fixed !important; top: 0 !important; left: -100000px !important; width: min(960px, 100vw) !important; opacity: 0; pointer-events: none; }
 .yvsl-popup-panel { width: min(960px, 100%); max-height: calc(100vh - 44px); overflow: auto; }
 .yvsl-popup-close { position: fixed; top: 14px; right: 14px; z-index: 1; background: #111; }
 .yvsl-root:fullscreen { width: 100%; height: 100%; border-radius: 0; display: flex; flex-direction: column; justify-content: center; }
@@ -438,6 +472,11 @@ var STYLES = `
   .yvsl-time { display: none; }
   .yvsl-btn { min-width: 38px; padding: 7px 9px; }
   .yvsl-root--sticky { right: 8px; bottom: 8px; width: calc(100vw - 16px); }
+  .yvsl-zone--corner { max-width: calc(100% - 20px); }
+  .yvsl-zone--top-left { top: 10px; left: 10px; }
+  .yvsl-zone--top-right { top: 10px; right: 10px; }
+  .yvsl-zone--bottom-left { bottom: 10px; left: 10px; }
+  .yvsl-zone--bottom-right { right: 10px; bottom: 10px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .yvsl-root *, .yvsl-root *::before, .yvsl-root *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
@@ -693,6 +732,12 @@ var YellowVSLPlayer = class {
     this.saveAt = 0;
     this.progressEventAt = 0;
     this.seekGeneration = 0;
+    this.stageRevealed = false;
+    this.stageWarmupTimer = null;
+    this.stageWarmupWasMuted = null;
+    this.stageWarmupBypassNextPlay = false;
+    this.adapterMountPromise = null;
+    this.pendingPlay = false;
     this.completed = false;
     this.lastActiveAt = 0;
     this.readyState = false;
@@ -722,7 +767,12 @@ var YellowVSLPlayer = class {
     this._setupSticky();
     this._bindLifecycle();
     instances.add(this);
-    this.ready = this._mountAdapter();
+    this.ready = this.options.popup ? Promise.resolve(this) : this._ensureAdapterMounted();
+  }
+  _ensureAdapterMounted() {
+    if (this.adapterMountPromise) return this.adapterMountPromise;
+    this.adapterMountPromise = this._mountAdapter();
+    return this.adapterMountPromise;
   }
   async _mountAdapter() {
     try {
@@ -766,7 +816,26 @@ var YellowVSLPlayer = class {
     const message = element("div", "yvsl-message", { hidden: true, "aria-live": "polite" });
     const stage = element("div", "yvsl-stage");
     const playerHost = element("div", "yvsl-player-host", { id: `${this.id}-player` });
-    stage.append(playerHost);
+    const stageInteraction = element("div", "yvsl-stage-interaction", {
+      role: this.options.stage.clickToToggle ? "button" : null,
+      tabindex: this.options.stage.clickToToggle ? "0" : null,
+      "aria-label": this.options.stage.clickToToggle ? locale.play : null
+    });
+    const poster = element("div", "yvsl-poster", { hidden: this.options.stage.poster === false });
+    const posterImage = element("img", "yvsl-poster__image", {
+      src: this._posterUrl(),
+      alt: "",
+      draggable: "false"
+    });
+    const posterPlay = element("span", "yvsl-poster__play", { text: "\u25B6", "aria-hidden": "true" });
+    poster.append(posterImage, posterPlay);
+    const stageOverlay = element("div", "yvsl-stage-overlay");
+    const topLeft = element("div", "yvsl-zone yvsl-zone--corner yvsl-zone--top-left");
+    const topRight = element("div", "yvsl-zone yvsl-zone--corner yvsl-zone--top-right");
+    const bottomLeft = element("div", "yvsl-zone yvsl-zone--corner yvsl-zone--bottom-left");
+    const bottomRight = element("div", "yvsl-zone yvsl-zone--corner yvsl-zone--bottom-right");
+    stageOverlay.append(topLeft, topRight, bottomLeft, bottomRight);
+    stage.append(playerHost, stageInteraction, poster, stageOverlay);
     const error = element("div", "yvsl-error", { hidden: true, role: "alert" });
     const controls = element("div", "yvsl-controls");
     const play = this._button("\u25B6", locale.play, "yvsl-play");
@@ -792,7 +861,7 @@ var YellowVSLPlayer = class {
     const below = element("div", "yvsl-zone yvsl-zone--below");
     root.append(stickyClose, above, message, stage, error, controls, below);
     this.mount.replaceChildren(sentinel, root);
-    this.dom = { root, sentinel, above, message, stage, playerHost, error, controls, play, volume, progress, time, speed, fullscreen, stickyClose, below };
+    this.dom = { root, sentinel, above, message, stage, playerHost, stageInteraction, poster, posterImage, posterPlay, stageOverlay, topLeft, topRight, bottomLeft, bottomRight, error, controls, play, volume, progress, time, speed, fullscreen, stickyClose, below };
     this._listen(play, "click", () => this.playerState === YT_STATE.PLAYING ? this.pause() : this.play());
     this._listen(volume, "click", () => this.adapter?.isMuted?.() ? this.unmute(true) : this.mute());
     this._listen(progress, "input", () => this._seekFromProgress());
@@ -800,6 +869,24 @@ var YellowVSLPlayer = class {
     this._listen(fullscreen, "click", () => this._toggleFullscreen());
     this._listen(stickyClose, "click", () => this._dismissSticky());
     this._listen(document, "fullscreenchange", () => this._updateFullscreenButton());
+    if (this.options.stage.clickToToggle) {
+      this._listen(stageInteraction, "click", () => this.playerState === YT_STATE.PLAYING ? this.pause() : this.play());
+      this._listen(stageInteraction, "keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        this.playerState === YT_STATE.PLAYING ? this.pause() : this.play();
+      });
+    }
+    if (this.options.stage.poster === "auto") {
+      this._listen(posterImage, "error", () => {
+        posterImage.src = `https://i.ytimg.com/vi/${this.videoId}/hqdefault.jpg`;
+      }, { once: true });
+    }
+  }
+  _posterUrl() {
+    if (this.options.stage.poster === false) return null;
+    if (this.options.stage.poster === "auto") return `https://i.ytimg.com/vi/${this.videoId}/maxresdefault.jpg`;
+    return toSafeUrl(this.options.stage.poster, location.href);
   }
   _button(text, label, extraClass = "") {
     return element("button", `yvsl-btn ${extraClass}`.trim(), {
@@ -906,6 +993,12 @@ var YellowVSLPlayer = class {
     if (this.destroyed) return;
     this.playerState = state;
     if (state === YT_STATE.PLAYING) {
+      if (this.stageWarmupBypassNextPlay) {
+        this.stageWarmupBypassNextPlay = false;
+        this.stageRevealed = true;
+      } else {
+        this._startStageWarmup();
+      }
       this.lastActiveAt = Date.now();
       this.completed = false;
       if (this.options.playback.singlePlayback) {
@@ -916,6 +1009,11 @@ var YellowVSLPlayer = class {
       this._startTicker();
       this._emit("play");
     } else {
+      if (!(this.stageWarmupBypassNextPlay && state === YT_STATE.BUFFERING)) {
+        this.stageWarmupBypassNextPlay = false;
+        this._cancelStageWarmup();
+        this.stageRevealed = false;
+      }
       this._stopTicker();
       this.timeline.resetClock();
       this._tick();
@@ -958,6 +1056,10 @@ var YellowVSLPlayer = class {
   }
   _tick() {
     if (this.destroyed || !this.adapter || !this.readyState) return;
+    if (this.stageWarmupTimer) {
+      this._updateUi();
+      return;
+    }
     if (!this.timeline.duration) this._refreshDuration();
     const observed = this.timeline.observe(this.adapter.getCurrentTime(), {
       playing: this.playerState === YT_STATE.PLAYING
@@ -1006,6 +1108,8 @@ var YellowVSLPlayer = class {
     this.dom.play.textContent = playing ? "\u2161" : "\u25B6";
     this.dom.play.title = playing ? this.options.locale.pause : this.options.locale.play;
     this.dom.play.setAttribute("aria-label", this.dom.play.title);
+    this.dom.stageInteraction.setAttribute("aria-label", this.dom.play.title);
+    this.dom.poster.hidden = this.options.stage.poster === false || playing && this.stageRevealed;
     const muted = this.adapter?.isMuted?.() ?? true;
     this.dom.volume.textContent = muted ? "\u{1F507}" : "\u{1F50A}";
     this.dom.volume.title = muted ? this.options.locale.unmute : this.options.locale.mute;
@@ -1038,6 +1142,39 @@ var YellowVSLPlayer = class {
     this.timeline.rate = Number(rate) || 1;
     this.adapter?.setPlaybackRate?.(this.timeline.rate);
   }
+  _startStageWarmup() {
+    this._cancelStageWarmup();
+    const delay = this.options.stage.poster === false ? 0 : this.options.stage.revealDelay;
+    if (!delay) {
+      this.stageRevealed = true;
+      return;
+    }
+    const returnPosition = this.timeline.current;
+    this.stageRevealed = false;
+    this.stageWarmupWasMuted = this.adapter?.isMuted?.() ?? true;
+    if (!this.stageWarmupWasMuted) this.adapter?.mute?.();
+    this.dom.posterPlay.textContent = "\u2026";
+    this.stageWarmupTimer = window.setTimeout(() => {
+      this.stageWarmupTimer = null;
+      if (this.destroyed || this.playerState !== YT_STATE.PLAYING) return;
+      this.stageWarmupBypassNextPlay = true;
+      this.adapter?.seekTo?.(this.timeline.start + returnPosition);
+      this.timeline.current = returnPosition;
+      this.timeline.resetClock();
+      if (this.stageWarmupWasMuted === false) this.adapter?.unmute?.();
+      this.stageWarmupWasMuted = null;
+      this.stageRevealed = true;
+      this.dom.posterPlay.textContent = "\u25B6";
+      this._updateUi();
+    }, delay);
+  }
+  _cancelStageWarmup() {
+    if (this.stageWarmupTimer) window.clearTimeout(this.stageWarmupTimer);
+    this.stageWarmupTimer = null;
+    if (this.stageWarmupWasMuted === false) this.adapter?.unmute?.();
+    this.stageWarmupWasMuted = null;
+    if (this.dom?.posterPlay) this.dom.posterPlay.textContent = "\u25B6";
+  }
   _renderTimedItems() {
     for (const item of this.options.hooks) {
       const node = element("p", "yvsl-hook", { text: String(item.text || ""), hidden: true });
@@ -1060,7 +1197,14 @@ var YellowVSLPlayer = class {
     this._updateTimedItems();
   }
   _zone(placement) {
-    return placement === "above" ? this.dom.above : this.dom.below;
+    return {
+      above: this.dom.above,
+      below: this.dom.below,
+      "top-left": this.dom.topLeft,
+      "top-right": this.dom.topRight,
+      "bottom-left": this.dom.bottomLeft,
+      "bottom-right": this.dom.bottomRight
+    }[placement] || this.dom.below;
   }
   _prepareReveal(item) {
     if (!item.reveal) return;
@@ -1125,7 +1269,8 @@ var YellowVSLPlayer = class {
   _setupPopup() {
     const popup = this.options.popup;
     if (!popup) return;
-    this.dom.root.hidden = true;
+    this.dom.root.classList.add("yvsl-root--popup-idle");
+    this.dom.root.setAttribute("aria-hidden", "true");
     if (typeof popup === "object" && popup.trigger) {
       for (const trigger of document.querySelectorAll(popup.trigger)) {
         this._listen(trigger, "click", (event) => {
@@ -1228,10 +1373,26 @@ var YellowVSLPlayer = class {
     this.dom.root.dispatchEvent(new CustomEvent(`yellowvsl:${name}`, { detail, bubbles: true }));
   }
   play() {
-    this.adapter?.play();
+    if (this.options.popup && !this.popupOpen) this.open();
+    if (!this.readyState) {
+      this.pendingPlay = true;
+      this.ready = this._ensureAdapterMounted();
+      this.ready.then(() => {
+        if (!this.destroyed && this.pendingPlay) {
+          this.pendingPlay = false;
+          this.adapter?.play();
+        }
+      }).catch(() => {
+        this.pendingPlay = false;
+      });
+      return this;
+    }
+    this.pendingPlay = false;
+    this.adapter.play();
     return this;
   }
   pause() {
+    this.pendingPlay = false;
     this.adapter?.pause();
     return this;
   }
@@ -1270,21 +1431,27 @@ var YellowVSLPlayer = class {
     }
     this.popupOpen = true;
     this.dom.root.classList.remove("yvsl-root--sticky");
-    this.dom.root.hidden = false;
+    this.dom.root.classList.remove("yvsl-root--popup-idle");
+    this.dom.root.removeAttribute("aria-hidden");
     this.dom.popupPanel.append(this.dom.root);
     this.dom.popupBackdrop.hidden = false;
     document.body.style.overflow = "hidden";
     this.dom.popupClose.focus();
+    this.ready = this._ensureAdapterMounted();
     return this;
   }
   close() {
     if (!this.popupOpen) return this;
+    this.pendingPlay = false;
     this.pause();
     this.popupOpen = false;
     this.mount.append(this.dom.root);
     this.dom.popupBackdrop.hidden = true;
     document.body.style.overflow = "";
-    if (this.options.popup) this.dom.root.hidden = true;
+    if (this.options.popup) {
+      this.dom.root.classList.add("yvsl-root--popup-idle");
+      this.dom.root.setAttribute("aria-hidden", "true");
+    }
     this._applySticky();
     return this;
   }
@@ -1308,6 +1475,7 @@ var YellowVSLPlayer = class {
     this._saveProgress();
     this.destroyed = true;
     this._stopTicker();
+    this._cancelStageWarmup();
     this.stickyObserver?.disconnect();
     this.adapter?.destroy();
     for (const dispose of this.cleanup.splice(0)) dispose();
@@ -1330,7 +1498,7 @@ function safeLocalStorage() {
 }
 
 // src/index.js
-var version = "1.1.0";
+var version = "1.2.0";
 var autoInstances = /* @__PURE__ */ new WeakMap();
 function create(target, options = {}) {
   return new YellowVSLPlayer(target, options);

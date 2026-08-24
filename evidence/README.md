@@ -1,4 +1,4 @@
-# YellowVSL v1.1.0 — визуальная приёмка
+# YellowVSL v1.2.0 — визуальная приёмка
 
 Стенд запускался по HTTP с настоящим публичным YouTube-видео. Перед сохранением каждого кадра Playwright проверял состояние DOM и API плеера; затем каждый PNG был открыт и просмотрен визуально. В таблицу включены только принятые кадры.
 
@@ -20,5 +20,9 @@
 | 14 | Несколько экземпляров | Основной плеер `paused`, фрагмент `playing`, результат `pass` | Стенд явно показывает, что одновременно играет только один экземпляр | [15-single-active-player.png](screenshots/15-single-active-player.png) |
 | 15 | Ошибка конфигурации | Невалидная строка отклонена до YouTube, результат `pass` | Сообщение показано внутри выделенного контейнера и не ломает страницу | [16-invalid-url-error.png](screenshots/16-invalid-url-error.png) |
 | 16 | Клиентские события | В журнале есть `play`, `progress`, `cta-show`, `cta-click`, `pause`; оффер открыт | Журнал событий и CTA одновременно видны; никаких сетевых отправок стенд не выполняет | [17-client-events-cta-click.png](screenshots/17-client-events-cta-click.png) |
+| 17 | Собственная пауза после hover | Мышь находится над кадром, iframe не получает pointer events, собственная обложка видима | Название, Share, Watch later и ссылка YouTube не появились | [18-hover-paused-own-poster.png](screenshots/18-hover-paused-own-poster.png) |
+| 18 | Воспроизведение после hover и CTA в углу | Видео играет, мышь над кадром, обложка скрыта, CTA находится в `bottom-right` | Виден только видеокадр, угловой CTA и нижняя панель YellowVSL | [26-hover-playing-clean-cta-bottom-right.png](screenshots/26-hover-playing-clean-cta-bottom-right.png) |
+| 19 | Popup на паузе после hover | Popup открыт, iframe не получает pointer events, собственная обложка видима | В модальном окне нет штатных элементов YouTube | [27-popup-hover-paused-own-poster.png](screenshots/27-popup-hover-paused-own-poster.png) |
+| 20 | Popup воспроизводится после hover | Popup создан при открытии, `playerState=1`, мышь над кадром, обложка скрыта | Чистый видеокадр и внешняя панель YellowVSL остаются видимыми без YouTube overlay | [28-popup-hover-playing-clean.png](screenshots/28-popup-hover-playing-clean.png) |
 
 Дополнительно те же основные сценарии проходят детерминированные тесты в Chromium, Firefox и WebKit. Live smoke-test использует официальный YouTube IFrame Player API и вынесен в `npm run test:live`, потому что зависит от доступности YouTube.

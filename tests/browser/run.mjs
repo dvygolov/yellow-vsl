@@ -29,6 +29,36 @@ try {
     assert.equal(initial.muted, true, `${name}: muted autoplay`);
     assert.equal(await page.locator(".yvsl-progress").first().isVisible(), true, `${name}: progress visible`);
     assert.equal(await page.locator(".yvsl-message").first().isVisible(), true, `${name}: unmute prompt`);
+    assert.equal(await page.locator("#main .yvsl-poster").isHidden(), true, `${name}: poster hidden while playing`);
+    assert.equal(await page.locator("#main [data-fake-youtube]").evaluate((node) => getComputedStyle(node).pointerEvents), "none", `${name}: YouTube surface ignores hover`);
+
+    await page.locator("#main .yvsl-stage-interaction").click({ position: { x: 10, y: 10 } });
+    await page.waitForFunction(() => window.mainPlayer.getState().playerState === 2);
+    assert.equal(await page.locator("#main .yvsl-poster").isVisible(), true, `${name}: own poster shown while paused`);
+    await page.locator("#main .yvsl-stage-interaction").click({ position: { x: 10, y: 10 } });
+    await page.waitForFunction(() => window.mainPlayer.getState().playerState === 1);
+
+    const warmup = await page.evaluate(async () => {
+      const mount = document.createElement("div");
+      mount.id = "warmup";
+      document.body.append(mount);
+      window.warmupPlayer = window.YellowVSL.create(mount, {
+        video: "M7lc1UVf-VE",
+        playback: { autoplay: false, resume: false },
+        stage: { revealDelay: 120 }
+      });
+      await window.warmupPlayer.ready;
+      window.warmupPlayer.play();
+      return {
+        posterVisible: !mount.querySelector(".yvsl-poster").hidden,
+        muted: window.warmupPlayer.getState().muted
+      };
+    });
+    assert.equal(warmup.posterVisible, true, `${name}: own poster covers native startup UI`);
+    assert.equal(warmup.muted, true, `${name}: warmup is muted`);
+    await page.waitForFunction(() => document.querySelector("#warmup .yvsl-poster")?.hidden === true);
+    assert.equal(await page.evaluate(() => window.warmupPlayer.getState().muted), false, `${name}: audio restored after warmup`);
+    await page.evaluate(() => window.warmupPlayer.destroy());
 
     const fullscreenButton = page.locator("#main .yvsl-fullscreen");
     if (await fullscreenButton.isVisible()) {
@@ -57,8 +87,9 @@ try {
       window.advancedPlayer = window.YellowVSL.create("#advanced", {
         video: "M7lc1UVf-VE",
         playback: { autoplay: false },
+        stage: { revealDelay: 0 },
         hooks: [{ start: 0.2, end: 2, text: "Hook", placement: "above" }],
-        ctas: [{ id: "offer", start: 0.5, text: "CTA", reveal: "#offer", persist: true }]
+        ctas: [{ id: "offer", start: 0.5, text: "CTA", reveal: "#offer", placement: "bottom-right", persist: true }]
       });
       await window.advancedPlayer.ready;
       window.advancedPlayer.play();
@@ -68,6 +99,7 @@ try {
     await page.waitForFunction(() => window.advancedPlayer.getState().currentTime > 0.7);
     assert.equal(await page.locator("#advanced .yvsl-hook").isVisible(), true, `${name}: hook timing`);
     assert.equal(await page.locator("#advanced .yvsl-cta").isVisible(), true, `${name}: CTA timing`);
+    assert.equal(await page.locator("#advanced .yvsl-cta").evaluate((node) => node.parentElement.classList.contains("yvsl-zone--bottom-right")), true, `${name}: CTA corner placement`);
     assert.equal(await page.locator("#offer").isVisible(), true, `${name}: reveal target`);
     assert.ok((await page.evaluate(() => window.eventNames)).includes("play"), `${name}: bubbling events`);
 
@@ -91,9 +123,13 @@ try {
       });
       await window.popupPlayer.ready;
     });
+    assert.equal(await page.evaluate(() => window.popupPlayer.adapter), null, `${name}: hidden popup defers YouTube mount`);
     await page.click("#open-popup");
     assert.equal(await page.locator(".yvsl-popup-backdrop").isVisible(), true, `${name}: popup opens`);
     assert.notEqual(await page.evaluate(() => window.secondPlayer.getState().playerState), 1, `${name}: popup pauses other players`);
+    await page.click(".yvsl-popup-panel .yvsl-play");
+    await page.waitForFunction(() => window.popupPlayer.getState().playerState === 1);
+    assert.equal(await page.evaluate(() => window.popupPlayer.getState().ready), true, `${name}: popup mounts YouTube while visible`);
     await page.click(".yvsl-popup-close");
     assert.equal(await page.locator(".yvsl-popup-backdrop").isVisible(), false, `${name}: popup closes`);
     assert.notEqual(await page.evaluate(() => window.popupPlayer.getState().playerState), 1, `${name}: popup close pauses`);

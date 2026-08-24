@@ -1,4 +1,4 @@
-const video = "https://www.youtube.com/watch?v=M7lc1UVf-VE";
+const video = "https://www.youtube.com/watch?v=Y7jHPB7FjhM";
 const eventLog = document.querySelector("#event-log");
 const eventCount = document.querySelector("#event-count");
 const eventLines = [];
@@ -17,8 +17,8 @@ const examplePlayer = YellowVSL.create("#example-player", {
   sticky: { position: "bottom-right", width: "370px" },
   playback: { autoplay: false, resume: "ask", end: 60 },
   controls: { speed: true },
-  hooks: [{ id: "site-hook", start: 2, end: 5.5, text: "Mini-hook: CTA появится на шестой секунде", placement: "above" }],
-  ctas: [{ id: "site-offer", start: 6, text: "Открыть предложение", reveal: "#example-offer", persist: false }]
+  hooks: [{ id: "site-hook", start: 2, end: 5.5, text: "Mini-hook: CTA появится на шестой секунде", placement: "top-left" }],
+  ctas: [{ id: "site-offer", start: 6, text: "Открыть предложение", reveal: "#example-offer", placement: "bottom-right", persist: false }]
 });
 
 const verticalPlayer = YellowVSL.create("#vertical-player", {

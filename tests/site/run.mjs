@@ -15,9 +15,11 @@ try {
   await page.waitForFunction(() => document.documentElement.dataset.playersReady === "true");
 
   assert.equal(await page.title(), "YellowVSL — бесплатный VSL-плеер на YouTube");
-  assert.equal(await page.locator("[data-fake-youtube]").count(), 4, "четыре живых примера инициализированы");
+  assert.equal(await page.locator("[data-fake-youtube]").count(), 3, "три inline-примера инициализированы сразу");
+  assert.equal(await page.evaluate(() => window.yellowVslSite.heroPlayer.getState().videoId), "Y7jHPB7FjhM", "на сайте используется выбранное видео");
+  assert.equal(await page.locator("#hero-player [data-fake-youtube]").evaluate((node) => getComputedStyle(node).pointerEvents), "none", "YouTube iframe не получает hover");
   assert.equal((await page.locator("body").innerText()).includes("__VERSION__"), false, "версия подставлена при сборке");
-  assert.match(await page.locator("#install-code").textContent(), /yellow-vsl@v1\.1\.0/);
+  assert.match(await page.locator("#install-code").textContent(), /yellow-vsl@v1\.2\.0/);
   assert.equal(await page.locator('meta[property="og:image"]').getAttribute("content"), "https://yellowvsl.pages.dev/og.png");
 
   await page.evaluate(() => {
@@ -27,6 +29,7 @@ try {
     player._tick();
   });
   assert.equal(await page.locator("#example-player .yvsl-cta").isVisible(), true, "CTA появляется по времени");
+  assert.equal(await page.locator("#example-player .yvsl-cta").evaluate((node) => node.parentElement.classList.contains("yvsl-zone--bottom-right")), true, "CTA находится справа снизу поверх видео");
   assert.equal(await page.locator("#example-offer").isVisible(), true, "CTA раскрывает оффер");
 
   await page.click("#example-forward");
@@ -34,6 +37,8 @@ try {
 
   await page.click("#open-popup");
   assert.equal(await page.locator(".yvsl-popup-backdrop").isVisible(), true, "popup открыт");
+  await page.waitForFunction(() => document.querySelectorAll("[data-fake-youtube]").length === 4);
+  assert.equal(await page.locator("[data-fake-youtube]").count(), 4, "popup инициализирует четвёртый плеер после открытия");
   await page.click(".yvsl-popup-close");
   assert.equal(await page.locator(".yvsl-popup-backdrop").isHidden(), true, "popup закрыт");
 
