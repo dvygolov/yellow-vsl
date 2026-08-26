@@ -32,6 +32,32 @@ try {
     assert.equal(await page.locator("#main .yvsl-poster").isHidden(), true, `${name}: poster hidden while playing`);
     assert.equal(await page.locator("#main [data-fake-youtube]").evaluate((node) => getComputedStyle(node).pointerEvents), "none", `${name}: YouTube surface ignores hover`);
 
+    const volumeToggle = await page.evaluate(() => {
+      const player = window.mainPlayer;
+      player.unmute(false);
+      player.timeline.current = 20;
+      player.timeline.maxWatched = 20;
+      player.adapter.player.time = 20;
+      let seekCalls = 0;
+      const originalSeekTo = player.adapter.seekTo;
+      player.adapter.seekTo = (...args) => {
+        seekCalls += 1;
+        return originalSeekTo.apply(player.adapter, args);
+      };
+      player.dom.volume.click();
+      const afterMute = player.getState();
+      player.dom.volume.click();
+      const afterUnmute = player.getState();
+      player.adapter.seekTo = originalSeekTo;
+      return { seekCalls, afterMute, afterUnmute };
+    });
+    assert.equal(volumeToggle.afterMute.muted, true, `${name}: volume button mutes without pausing`);
+    assert.equal(volumeToggle.afterMute.playerState, 1, `${name}: playback continues after mute`);
+    assert.equal(volumeToggle.afterUnmute.muted, false, `${name}: second volume click unmutes`);
+    assert.equal(volumeToggle.afterUnmute.playerState, 1, `${name}: playback continues after unmute`);
+    assert.equal(volumeToggle.seekCalls, 0, `${name}: volume toggle never seeks to the beginning`);
+    assert.ok(volumeToggle.afterUnmute.currentTime >= 20, `${name}: volume toggle preserves position`);
+
     await page.locator("#main .yvsl-stage-interaction").click({ position: { x: 10, y: 10 } });
     await page.waitForFunction(() => window.mainPlayer.getState().playerState === 2);
     assert.equal(await page.locator("#main .yvsl-poster").isVisible(), true, `${name}: own poster shown while paused`);

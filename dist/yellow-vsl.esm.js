@@ -1,4 +1,4 @@
-/*! YellowVSL v1.4.0 | MIT License | https://github.com/dvygolov/yellow-vsl */
+/*! YellowVSL v1.4.1 | MIT License | https://github.com/dvygolov/yellow-vsl */
 
 // src/utils.js
 var DEFAULT_PROGRESS_POINTS = Object.freeze([
@@ -869,7 +869,7 @@ var YellowVSLPlayer = class {
     this.mount.replaceChildren(sentinel, root);
     this.dom = { root, sentinel, above, message, stage, playerHost, stageInteraction, poster, posterImage, posterPlay, stageOverlay, topLeft, topRight, bottomLeft, bottomRight, error, controls, play, volume, progress, time, speed, fullscreen, stickyClose, below };
     this._listen(play, "click", () => this.playerState === YT_STATE.PLAYING ? this.pause() : this.play());
-    this._listen(volume, "click", () => this.adapter?.isMuted?.() ? this.unmute(true) : this.mute());
+    this._listen(volume, "click", () => this.adapter?.isMuted?.() ? this.unmute() : this.mute());
     this._listen(progress, "input", () => this._seekFromProgress());
     this._listen(speed, "change", () => this._setRate(Number(speed.value)));
     this._listen(fullscreen, "click", () => this._toggleFullscreen());
@@ -1526,7 +1526,7 @@ function safeLocalStorage() {
 }
 
 // src/index.js
-var version = "1.4.0";
+var version = "1.4.1";
 var autoInstances = /* @__PURE__ */ new WeakMap();
 function create(target, options = {}) {
   return new YellowVSLPlayer(target, options);
