@@ -35,6 +35,20 @@ test("Smart Progress проходит через заданные контрол
   assert.ok(Math.abs(interpolateProgress(0.3, DEFAULT_PROGRESS_POINTS) - 0.525) < 1e-12);
 });
 
+test("Smart Progress принимает процентную матрицу", () => {
+  const points = validateProgressPoints([
+    [0, 0],
+    [5, 50],
+    [30, 70],
+    [50, 90],
+    [100, 100]
+  ]);
+  assert.deepEqual(points, [[0, 0], [0.05, 0.5], [0.3, 0.7], [0.5, 0.9], [1, 1]]);
+  assert.equal(interpolateProgress(0.05, points), 0.5);
+  assert.equal(interpolateProgress(0.3, points), 0.7);
+  assert.equal(interpolateProgress(0.5, points), 0.9);
+});
+
 test("Smart Progress монотонен и обратим", () => {
   let previous = -1;
   for (let index = 0; index <= 1000; index += 1) {

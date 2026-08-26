@@ -30,7 +30,7 @@ If you like this script, PLEASE DONATE!
   data-video="https://youtu.be/M7lc1UVf-VE">
 </div>
 
-<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.3.0/dist/yellow-vsl.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.4.0/dist/yellow-vsl.min.js"></script>
 ```
 
 По умолчанию включены:
@@ -71,7 +71,7 @@ npm run demo
   Этот блок откроется после просмотра питча.
 </section>
 
-<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.3.0/dist/yellow-vsl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.4.0/dist/yellow-vsl.min.js"></script>
 <script>
   const player = YellowVSL.create("#sales-video", {
     video: "https://www.youtube.com/watch?v=M7lc1UVf-VE",
@@ -184,6 +184,23 @@ playback: {
 | --- | --- | --- | --- |
 | `mode` | `"smart"`, `"real"`, `"hidden"` | `"smart"` | Выбирает Smart Progress, реальную шкалу или скрывает её |
 | `points` | массив `[real, visual]` | `[[0,0],[0.1,0.3],[0.5,0.75],[1,1]]` | Задаёт собственную монотонную кривую Smart Progress |
+
+Точки принимаются в двух форматах: дроби `0..1` и обычные проценты `0..100`. Все точки одной матрицы должны использовать одну шкалу. Первая точка - `[0, 0]`, последняя - `[1, 1]` либо `[100, 100]`.
+
+```js
+progress: {
+  mode: "smart",
+  points: [
+    [0, 0],
+    [5, 50],
+    [30, 70],
+    [50, 90],
+    [100, 100]
+  ]
+}
+```
+
+В этой матрице после 5% реального просмотра шкала покажет 50%, после 30% - 70%, после 50% - 90%. Между контрольными точками значение рассчитывается линейно.
 
 ### `controls`
 

@@ -50,16 +50,22 @@ export function validateProgressPoints(points) {
     throw new TypeError("progress.points должен содержать не менее двух контрольных точек");
   }
 
-  const normalized = points.map((point) => {
+  const numeric = points.map((point) => {
     if (!Array.isArray(point) || point.length !== 2) {
       throw new TypeError("Каждая контрольная точка progress.points должна иметь формат [real, visual]");
     }
     const x = Number(point[0]);
     const y = Number(point[1]);
-    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > 1 || y < 0 || y > 1) {
-      throw new RangeError("Координаты progress.points должны находиться в диапазоне от 0 до 1");
-    }
     return [x, y];
+  });
+
+  const percentageScale = numeric.some(([x, y]) => x > 1 || y > 1);
+  const maximum = percentageScale ? 100 : 1;
+  const normalized = numeric.map(([x, y]) => {
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > maximum || y < 0 || y > maximum) {
+      throw new RangeError("Координаты progress.points должны находиться в диапазоне от 0 до 1 или от 0 до 100");
+    }
+    return percentageScale ? [x / 100, y / 100] : [x, y];
   });
 
   if (normalized[0][0] !== 0 || normalized[0][1] !== 0) {

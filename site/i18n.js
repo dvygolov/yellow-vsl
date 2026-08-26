@@ -100,8 +100,8 @@
       "install.playback.title": "Loop, скорость и перемотка",
       "install.playback.text": "noSeek: \"forward\" блокирует переход вперёд. Значение false разрешает свободную перемотку.",
       "install.modes.kicker": "Режимы плеера",
-      "install.modes.title": "Progress, popup и sticky",
-      "install.modes.text": "Выберите smart, real или hidden progress, включите скорость и нужный режим показа.",
+      "install.modes.title": "Матрица Progress, popup и sticky",
+      "install.modes.text": "Точки Smart Progress можно задавать дробями 0..1 или обычными процентами 0..100. Дефолтная кривая остаётся встроенной.",
       "install.docs.title": "Все параметры собраны на GitHub",
       "install.docs.text": "README содержит таблицы playback, progress, controls, stage, CTA/hooks, theme, методов и событий.",
       "install.docs.button": "Открыть полную документацию",
@@ -146,7 +146,7 @@
 }`,
       "code.modes": `progress: {
   mode: "smart",
-  points: [[0, 0], [0.1, 0.3], [0.5, 0.75], [1, 1]]
+  points: [[0, 0], [5, 50], [30, 70], [50, 90], [100, 100]]
 },
 controls: { speed: true },
 sticky: { position: "bottom-right", width: "420px" },
@@ -238,8 +238,8 @@ popup: false`
       "install.playback.title": "Loop, speed and seeking",
       "install.playback.text": "noSeek: \"forward\" blocks forward seeking. Set it to false to allow free seeking.",
       "install.modes.kicker": "Player modes",
-      "install.modes.title": "Progress, popup and sticky",
-      "install.modes.text": "Choose smart, real or hidden progress, expose speed controls, and select the display mode you need.",
+      "install.modes.title": "Progress matrix, popup and sticky",
+      "install.modes.text": "Smart Progress points accept 0..1 fractions or regular 0..100 percentages. The built-in default curve stays unchanged.",
       "install.docs.title": "Every option is documented on GitHub",
       "install.docs.text": "The README covers playback, progress, controls, stage, CTA/hooks, theme, methods and browser events.",
       "install.docs.button": "Open full documentation",
@@ -284,7 +284,7 @@ popup: false`
 }`,
       "code.modes": `progress: {
   mode: "smart",
-  points: [[0, 0], [0.1, 0.3], [0.5, 0.75], [1, 1]]
+  points: [[0, 0], [5, 50], [30, 70], [50, 90], [100, 100]]
 },
 controls: { speed: true },
 sticky: { position: "bottom-right", width: "420px" },

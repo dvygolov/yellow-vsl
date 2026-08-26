@@ -54,6 +54,7 @@ export class YellowVSLPlayer {
     this.stageWarmupTimer = null;
     this.stageWarmupWasMuted = null;
     this.stageWarmupBypassNextPlay = false;
+    this.stageWasRevealedBeforeBuffering = false;
     this.adapterMountPromise = null;
     this.pendingPlay = false;
     this.completed = false;
@@ -339,13 +340,24 @@ export class YellowVSLPlayer {
   _onStateChange(state) {
     if (this.destroyed) return;
     this.playerState = state;
+    if (state === YT_STATE.BUFFERING) {
+      this.stageWasRevealedBeforeBuffering = this.stageRevealed;
+      this._stopTicker();
+      this.timeline.resetClock();
+      this._applySticky();
+      this._updateUi();
+      return;
+    }
     if (state === YT_STATE.PLAYING) {
       if (this.stageWarmupBypassNextPlay) {
         this.stageWarmupBypassNextPlay = false;
         this.stageRevealed = true;
+      } else if (this.stageWasRevealedBeforeBuffering) {
+        this.stageRevealed = true;
       } else {
         this._startStageWarmup();
       }
+      this.stageWasRevealedBeforeBuffering = false;
       this.lastActiveAt = Date.now();
       this.completed = false;
       if (this.options.playback.singlePlayback) {
@@ -356,11 +368,10 @@ export class YellowVSLPlayer {
       this._startTicker();
       this._emit("play");
     } else {
-      if (!(this.stageWarmupBypassNextPlay && state === YT_STATE.BUFFERING)) {
-        this.stageWarmupBypassNextPlay = false;
-        this._cancelStageWarmup();
-        this.stageRevealed = false;
-      }
+      this.stageWarmupBypassNextPlay = false;
+      this.stageWasRevealedBeforeBuffering = false;
+      this._cancelStageWarmup();
+      this.stageRevealed = false;
       this._stopTicker();
       this.timeline.resetClock();
       this._tick();
@@ -465,11 +476,12 @@ export class YellowVSLPlayer {
 
   _updateUi() {
     const playing = this.playerState === YT_STATE.PLAYING;
+    const displayingVideo = playing || (this.playerState === YT_STATE.BUFFERING && this.stageWasRevealedBeforeBuffering);
     this.dom.play.textContent = playing ? "Ⅱ" : "▶";
     this.dom.play.title = playing ? this.options.locale.pause : this.options.locale.play;
     this.dom.play.setAttribute("aria-label", this.dom.play.title);
     this.dom.stageInteraction.setAttribute("aria-label", this.dom.play.title);
-    this.dom.poster.hidden = this.options.stage.poster === false || (playing && this.stageRevealed);
+    this.dom.poster.hidden = this.options.stage.poster === false || (displayingVideo && this.stageRevealed);
 
     const muted = this.adapter?.isMuted?.() ?? true;
     this.dom.volume.textContent = muted ? "🔇" : "🔊";
@@ -815,7 +827,12 @@ export class YellowVSLPlayer {
   }
 
   seek(seconds) {
-    const sourceTime = this.timeline.seek(seconds);
+    const requested = clamp(seconds, 0, this.timeline.duration || Infinity);
+    if (this.options.playback.noSeek === "forward" && requested > this.timeline.maxWatched + 0.001) {
+      this._updateUi();
+      return this.timeline.current;
+    }
+    const sourceTime = this.timeline.seek(requested);
     const logicalTime = sourceTime - this.timeline.start;
     const generation = ++this.seekGeneration;
     this.adapter?.seekTo(sourceTime);

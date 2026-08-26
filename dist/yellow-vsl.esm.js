@@ -1,4 +1,4 @@
-/*! YellowVSL v1.3.0 | MIT License | https://github.com/dvygolov/yellow-vsl */
+/*! YellowVSL v1.4.0 | MIT License | https://github.com/dvygolov/yellow-vsl */
 
 // src/utils.js
 var DEFAULT_PROGRESS_POINTS = Object.freeze([
@@ -39,16 +39,21 @@ function validateProgressPoints(points) {
   if (!Array.isArray(points) || points.length < 2) {
     throw new TypeError("progress.points \u0434\u043E\u043B\u0436\u0435\u043D \u0441\u043E\u0434\u0435\u0440\u0436\u0430\u0442\u044C \u043D\u0435 \u043C\u0435\u043D\u0435\u0435 \u0434\u0432\u0443\u0445 \u043A\u043E\u043D\u0442\u0440\u043E\u043B\u044C\u043D\u044B\u0445 \u0442\u043E\u0447\u0435\u043A");
   }
-  const normalized = points.map((point) => {
+  const numeric = points.map((point) => {
     if (!Array.isArray(point) || point.length !== 2) {
       throw new TypeError("\u041A\u0430\u0436\u0434\u0430\u044F \u043A\u043E\u043D\u0442\u0440\u043E\u043B\u044C\u043D\u0430\u044F \u0442\u043E\u0447\u043A\u0430 progress.points \u0434\u043E\u043B\u0436\u043D\u0430 \u0438\u043C\u0435\u0442\u044C \u0444\u043E\u0440\u043C\u0430\u0442 [real, visual]");
     }
     const x = Number(point[0]);
     const y = Number(point[1]);
-    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > 1 || y < 0 || y > 1) {
-      throw new RangeError("\u041A\u043E\u043E\u0440\u0434\u0438\u043D\u0430\u0442\u044B progress.points \u0434\u043E\u043B\u0436\u043D\u044B \u043D\u0430\u0445\u043E\u0434\u0438\u0442\u044C\u0441\u044F \u0432 \u0434\u0438\u0430\u043F\u0430\u0437\u043E\u043D\u0435 \u043E\u0442 0 \u0434\u043E 1");
-    }
     return [x, y];
+  });
+  const percentageScale = numeric.some(([x, y]) => x > 1 || y > 1);
+  const maximum = percentageScale ? 100 : 1;
+  const normalized = numeric.map(([x, y]) => {
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > maximum || y < 0 || y > maximum) {
+      throw new RangeError("\u041A\u043E\u043E\u0440\u0434\u0438\u043D\u0430\u0442\u044B progress.points \u0434\u043E\u043B\u0436\u043D\u044B \u043D\u0430\u0445\u043E\u0434\u0438\u0442\u044C\u0441\u044F \u0432 \u0434\u0438\u0430\u043F\u0430\u0437\u043E\u043D\u0435 \u043E\u0442 0 \u0434\u043E 1 \u0438\u043B\u0438 \u043E\u0442 0 \u0434\u043E 100");
+    }
+    return percentageScale ? [x / 100, y / 100] : [x, y];
   });
   if (normalized[0][0] !== 0 || normalized[0][1] !== 0) {
     throw new RangeError("\u041F\u0435\u0440\u0432\u0430\u044F \u043A\u043E\u043D\u0442\u0440\u043E\u043B\u044C\u043D\u0430\u044F \u0442\u043E\u0447\u043A\u0430 progress.points \u0434\u043E\u043B\u0436\u043D\u0430 \u0431\u044B\u0442\u044C [0, 0]");
@@ -736,6 +741,7 @@ var YellowVSLPlayer = class {
     this.stageWarmupTimer = null;
     this.stageWarmupWasMuted = null;
     this.stageWarmupBypassNextPlay = false;
+    this.stageWasRevealedBeforeBuffering = false;
     this.adapterMountPromise = null;
     this.pendingPlay = false;
     this.completed = false;
@@ -992,13 +998,24 @@ var YellowVSLPlayer = class {
   _onStateChange(state) {
     if (this.destroyed) return;
     this.playerState = state;
+    if (state === YT_STATE.BUFFERING) {
+      this.stageWasRevealedBeforeBuffering = this.stageRevealed;
+      this._stopTicker();
+      this.timeline.resetClock();
+      this._applySticky();
+      this._updateUi();
+      return;
+    }
     if (state === YT_STATE.PLAYING) {
       if (this.stageWarmupBypassNextPlay) {
         this.stageWarmupBypassNextPlay = false;
         this.stageRevealed = true;
+      } else if (this.stageWasRevealedBeforeBuffering) {
+        this.stageRevealed = true;
       } else {
         this._startStageWarmup();
       }
+      this.stageWasRevealedBeforeBuffering = false;
       this.lastActiveAt = Date.now();
       this.completed = false;
       if (this.options.playback.singlePlayback) {
@@ -1009,11 +1026,10 @@ var YellowVSLPlayer = class {
       this._startTicker();
       this._emit("play");
     } else {
-      if (!(this.stageWarmupBypassNextPlay && state === YT_STATE.BUFFERING)) {
-        this.stageWarmupBypassNextPlay = false;
-        this._cancelStageWarmup();
-        this.stageRevealed = false;
-      }
+      this.stageWarmupBypassNextPlay = false;
+      this.stageWasRevealedBeforeBuffering = false;
+      this._cancelStageWarmup();
+      this.stageRevealed = false;
       this._stopTicker();
       this.timeline.resetClock();
       this._tick();
@@ -1105,11 +1121,12 @@ var YellowVSLPlayer = class {
   }
   _updateUi() {
     const playing = this.playerState === YT_STATE.PLAYING;
+    const displayingVideo = playing || this.playerState === YT_STATE.BUFFERING && this.stageWasRevealedBeforeBuffering;
     this.dom.play.textContent = playing ? "\u2161" : "\u25B6";
     this.dom.play.title = playing ? this.options.locale.pause : this.options.locale.play;
     this.dom.play.setAttribute("aria-label", this.dom.play.title);
     this.dom.stageInteraction.setAttribute("aria-label", this.dom.play.title);
-    this.dom.poster.hidden = this.options.stage.poster === false || playing && this.stageRevealed;
+    this.dom.poster.hidden = this.options.stage.poster === false || displayingVideo && this.stageRevealed;
     const muted = this.adapter?.isMuted?.() ?? true;
     this.dom.volume.textContent = muted ? "\u{1F507}" : "\u{1F50A}";
     this.dom.volume.title = muted ? this.options.locale.unmute : this.options.locale.mute;
@@ -1416,7 +1433,12 @@ var YellowVSLPlayer = class {
     return this;
   }
   seek(seconds) {
-    const sourceTime = this.timeline.seek(seconds);
+    const requested = clamp(seconds, 0, this.timeline.duration || Infinity);
+    if (this.options.playback.noSeek === "forward" && requested > this.timeline.maxWatched + 1e-3) {
+      this._updateUi();
+      return this.timeline.current;
+    }
+    const sourceTime = this.timeline.seek(requested);
     const logicalTime = sourceTime - this.timeline.start;
     const generation = ++this.seekGeneration;
     this.adapter?.seekTo(sourceTime);
@@ -1504,7 +1526,7 @@ function safeLocalStorage() {
 }
 
 // src/index.js
-var version = "1.3.0";
+var version = "1.4.0";
 var autoInstances = /* @__PURE__ */ new WeakMap();
 function create(target, options = {}) {
   return new YellowVSLPlayer(target, options);

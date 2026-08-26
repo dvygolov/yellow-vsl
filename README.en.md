@@ -30,7 +30,7 @@ A free vanilla JavaScript VSL player backed by YouTube. YellowVSL adds Smart Aut
   data-video="https://youtu.be/M7lc1UVf-VE">
 </div>
 
-<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.3.0/dist/yellow-vsl.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.4.0/dist/yellow-vsl.min.js"></script>
 ```
 
 The defaults include:
@@ -69,7 +69,7 @@ Open `http://127.0.0.1:4173/demo/`. The demo covers Smart Autoplay, Smart Progre
   This block is revealed after the pitch.
 </section>
 
-<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.3.0/dist/yellow-vsl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.4.0/dist/yellow-vsl.min.js"></script>
 <script>
   const player = YellowVSL.create("#sales-video", {
     video: "https://www.youtube.com/watch?v=M7lc1UVf-VE",
@@ -173,6 +173,23 @@ playback: {
 | --- | --- | --- | --- |
 | `mode` | `"smart"`, `"real"`, `"hidden"` | `"smart"` | Smart curve, real progress or no bar |
 | `points` | `[real, visual]` pairs | `[[0,0],[0.1,0.3],[0.5,0.75],[1,1]]` | Custom monotonic Smart Progress curve |
+
+Points accept two formats: `0..1` fractions or regular `0..100` percentages. Use one scale throughout a matrix. The first point must be `[0, 0]`; the last must be `[1, 1]` or `[100, 100]`.
+
+```js
+progress: {
+  mode: "smart",
+  points: [
+    [0, 0],
+    [5, 50],
+    [30, 70],
+    [50, 90],
+    [100, 100]
+  ]
+}
+```
+
+This curve shows 50% after 5% of real watch time, 70% after 30%, and 90% after 50%. Values between control points are linearly interpolated.
 
 ### `controls`
 

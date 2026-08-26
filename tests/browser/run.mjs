@@ -38,6 +38,33 @@ try {
     await page.locator("#main .yvsl-stage-interaction").click({ position: { x: 10, y: 10 } });
     await page.waitForFunction(() => window.mainPlayer.getState().playerState === 1);
 
+    const blockedTimelineClick = await page.evaluate(() => {
+      const player = window.mainPlayer;
+      player.timeline.current = 2;
+      player.timeline.maxWatched = 2;
+      player.stageRevealed = true;
+      player._updateUi();
+      let seekCalls = 0;
+      const originalSeekTo = player.adapter.seekTo;
+      player.adapter.seekTo = () => { seekCalls += 1; };
+      player.dom.progress.value = "950";
+      player.dom.progress.dispatchEvent(new Event("input", { bubbles: true }));
+      const blocked = {
+        seekCalls,
+        currentTime: player.getState().currentTime,
+        progressValue: Number(player.dom.progress.value)
+      };
+      player._onStateChange(3);
+      blocked.posterHiddenDuringBuffering = player.dom.poster.hidden;
+      player.adapter.seekTo = originalSeekTo;
+      player._onStateChange(1);
+      return blocked;
+    });
+    assert.equal(blockedTimelineClick.seekCalls, 0, `${name}: blocked timeline click does not call YouTube seek`);
+    assert.equal(blockedTimelineClick.currentTime, 2, `${name}: blocked timeline click keeps current time`);
+    assert.notEqual(blockedTimelineClick.progressValue, 950, `${name}: blocked timeline click restores progress thumb`);
+    assert.equal(blockedTimelineClick.posterHiddenDuringBuffering, true, `${name}: buffering does not flash own poster`);
+
     const warmup = await page.evaluate(async () => {
       const mount = document.createElement("div");
       mount.id = "warmup";
@@ -74,12 +101,13 @@ try {
     await page.waitForFunction(() => window.mainPlayer.getState().playerState === 1);
     await page.waitForFunction(() => window.mainPlayer.getState().maxWatched > 0.5);
     const seek = await page.evaluate(() => {
-      const before = window.mainPlayer.getState().maxWatched;
+      const beforeState = window.mainPlayer.getState();
+      const before = beforeState.maxWatched;
       const forward = window.mainPlayer.seek(before + 40);
       const backward = window.mainPlayer.seek(before / 2);
-      return { before, forward, backward, state: window.mainPlayer.getState() };
+      return { before, currentBefore: beforeState.currentTime, forward, backward, state: window.mainPlayer.getState() };
     });
-    assert.ok(Math.abs(seek.forward - seek.before) < 0.01, `${name}: forward seek blocked`);
+    assert.ok(Math.abs(seek.forward - seek.currentBefore) < 0.01, `${name}: forward seek is a no-op`);
     assert.ok(Math.abs(seek.backward - seek.before / 2) < 0.01, `${name}: backward seek allowed`);
     assert.equal(await page.evaluate(() => window.YellowVSL.interpolateProgress(0.1)), 0.3, `${name}: smart curve`);
 

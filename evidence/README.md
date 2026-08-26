@@ -1,4 +1,4 @@
-# YellowVSL v1.3.0 — визуальная приёмка
+# YellowVSL v1.4.0 — визуальная приёмка
 
 Стенд запускался по HTTP с настоящим публичным YouTube-видео. Перед сохранением каждого кадра Playwright проверял состояние DOM и API плеера; затем каждый PNG был открыт и просмотрен визуально. В таблицу включены только принятые кадры.
 
@@ -26,5 +26,6 @@
 | 20 | Popup воспроизводится после hover | Popup создан при открытии, `playerState=1`, мышь над кадром, обложка скрыта | Чистый видеокадр и внешняя панель YellowVSL остаются видимыми без YouTube overlay | [28-popup-hover-playing-clean.png](screenshots/28-popup-hover-playing-clean.png) |
 | 21 | Русский сайт и примеры настройки | `lang=ru`, активен российский флаг, длительность YouTube `2355.661`, у hero и основного примера `end=null` | В разделе установки видны готовые примеры CTA, playback и режимов плеера | [32-ru-install-configuration.png](screenshots/32-ru-install-configuration.png) |
 | 22 | Английский сайт и переключатель языка | `lang=en`, активен британский флаг, кириллица в видимом тексте отсутствует, документация ведёт в `README.en.md` | Английская адаптация и три конфигурационных примера помещаются в desktop viewport | [33-en-install-configuration.png](screenshots/33-en-install-configuration.png) |
+| 23 | Запрещённый переход вперёд без реакции | После клика по 90% шкалы вызовов `YouTube.seekTo` нет, обложка ни разу не показалась, воспроизведение продолжилось с текущей позиции | Кадр остаётся видимым, ползунок возвращается в реально достигнутую область | [34-blocked-forward-seek-noop.png](screenshots/34-blocked-forward-seek-noop.png) |
 
 Дополнительно те же основные сценарии проходят детерминированные тесты в Chromium, Firefox и WebKit. Live smoke-test использует официальный YouTube IFrame Player API и вынесен в `npm run test:live`, потому что зависит от доступности YouTube.
