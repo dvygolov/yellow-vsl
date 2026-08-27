@@ -293,7 +293,10 @@ export class YellowVSLPlayer {
     const label = this.options.locale.unmutePrompt || this.options.locale.unmute;
     const button = this._button("🔊", label, "yvsl-btn--accent");
     button.textContent = label;
-    this._listen(button, "click", () => this.unmute(true));
+    this._listen(button, "click", () => {
+      this.unmute(true);
+      this.play();
+    });
     this._showMessage("", [button]);
   }
 
@@ -867,7 +870,6 @@ export class YellowVSLPlayer {
     if (restart) this.seek(0);
     this.adapter?.unmute();
     this._hideMessage();
-    this.play();
     this._updateUi();
     return this;
   }

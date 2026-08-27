@@ -49,7 +49,10 @@ for (const name of ["ready", "view", "play", "pause", "progress", "resume", "com
   });
 }
 
-document.querySelector("#demo-unmute").addEventListener("click", () => mainPlayer.unmute(true));
+document.querySelector("#demo-unmute").addEventListener("click", () => {
+  mainPlayer.unmute(true);
+  mainPlayer.play();
+});
 document.querySelector("#test-forward").addEventListener("click", () => {
   const before = mainPlayer.getState().maxWatched;
   const requested = before + 60;

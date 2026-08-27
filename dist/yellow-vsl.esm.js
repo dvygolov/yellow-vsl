@@ -1,4 +1,4 @@
-/*! YellowVSL v1.5.0 | MIT License | https://github.com/dvygolov/yellow-vsl */
+/*! YellowVSL v1.5.1 | MIT License | https://github.com/dvygolov/yellow-vsl */
 
 // src/utils.js
 var DEFAULT_PROGRESS_POINTS = Object.freeze([
@@ -974,7 +974,10 @@ var YellowVSLPlayer = class {
     const label = this.options.locale.unmutePrompt || this.options.locale.unmute;
     const button = this._button("\u{1F50A}", label, "yvsl-btn--accent");
     button.textContent = label;
-    this._listen(button, "click", () => this.unmute(true));
+    this._listen(button, "click", () => {
+      this.unmute(true);
+      this.play();
+    });
     this._showMessage("", [button]);
   }
   _showAutoplayFallback() {
@@ -1487,7 +1490,6 @@ var YellowVSLPlayer = class {
     if (restart) this.seek(0);
     this.adapter?.unmute();
     this._hideMessage();
-    this.play();
     this._updateUi();
     return this;
   }
@@ -1586,7 +1588,7 @@ function safeLocalStorage() {
 }
 
 // src/index.js
-var version = "1.5.0";
+var version = "1.5.1";
 var autoInstances = /* @__PURE__ */ new WeakMap();
 function create(target, options = {}) {
   return new YellowVSLPlayer(target, options);

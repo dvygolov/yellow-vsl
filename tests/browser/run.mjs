@@ -58,6 +58,29 @@ try {
     assert.equal(volumeToggle.seekCalls, 0, `${name}: volume toggle never seeks to the beginning`);
     assert.ok(volumeToggle.afterUnmute.currentTime >= 20, `${name}: volume toggle preserves position`);
 
+    const pausedVolumeToggle = await page.evaluate(() => {
+      const player = window.mainPlayer;
+      player.pause();
+      player.mute();
+      let playCalls = 0;
+      const originalPlay = player.adapter.play;
+      player.adapter.play = (...args) => {
+        playCalls += 1;
+        return originalPlay.apply(player.adapter, args);
+      };
+      const before = player.getState();
+      player.dom.volume.click();
+      const after = player.getState();
+      player.adapter.play = originalPlay;
+      return { before, after, playCalls };
+    });
+    assert.equal(pausedVolumeToggle.before.playerState, 2, `${name}: paused volume test starts paused`);
+    assert.equal(pausedVolumeToggle.after.muted, false, `${name}: paused player can be unmuted`);
+    assert.equal(pausedVolumeToggle.after.playerState, 2, `${name}: unmute preserves paused state`);
+    assert.equal(pausedVolumeToggle.playCalls, 0, `${name}: unmute never calls play`);
+    await page.evaluate(() => window.mainPlayer.play());
+    await page.waitForFunction(() => window.mainPlayer.getState().playerState === 1);
+
     await page.locator("#main .yvsl-stage-interaction").click({ position: { x: 10, y: 10 } });
     await page.waitForFunction(() => window.mainPlayer.getState().playerState === 2);
     assert.equal(await page.locator("#main .yvsl-poster").isVisible(), true, `${name}: own poster shown while paused`);

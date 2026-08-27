@@ -47,6 +47,7 @@ window.yellowVslSite = { heroPlayer, examplePlayer, fragmentPlayer, popupPlayer 
 
 document.querySelector("#example-unmute").addEventListener("click", (event) => {
   examplePlayer.unmute(true);
+  examplePlayer.play();
   event.currentTarget.hidden = true;
 }, { once: true });
 document.querySelector("#fragment-start").addEventListener("click", () => fragmentPlayer.play());
