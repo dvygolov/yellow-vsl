@@ -17,14 +17,19 @@ try {
   assert.equal(await page.title(), "YellowVSL - бесплатный VSL-плеер на YouTube");
   assert.equal(await page.getAttribute("html", "lang"), "ru", "русский выбирается по языку браузера");
   assert.equal(await page.locator('[data-language="ru"]').getAttribute("aria-current"), "page", "русский флаг активен");
-  assert.equal(await page.locator("[data-fake-youtube]").count(), 3, "три inline-примера инициализированы сразу");
+  assert.equal(await page.locator("[data-fake-youtube]").count(), 4, "четыре примера, включая popup, загружены заранее");
   assert.equal(await page.evaluate(() => window.yellowVslSite.heroPlayer.getState().videoId), "Y7jHPB7FjhM", "на сайте используется выбранное видео");
   assert.equal(await page.evaluate(() => window.yellowVslSite.heroPlayer.options.playback.end), null, "hero показывает полное видео");
   assert.equal(await page.evaluate(() => window.yellowVslSite.examplePlayer.options.playback.end), null, "основной пример показывает полное видео");
   assert.equal(await page.locator("#hero-player [data-fake-youtube]").evaluate((node) => getComputedStyle(node).pointerEvents), "none", "YouTube iframe не получает hover");
   assert.equal((await page.locator("body").innerText()).includes("Это настоящий плеер, а не картинка"), false, "нежелательная подпись удалена");
+  assert.equal((await page.locator("body").innerText()).includes("Живые примеры"), false, "калька про живые примеры удалена");
+  assert.equal((await page.locator("body").innerText()).includes("медиавремени"), false, "непонятный термин удалён");
+  assert.equal((await page.locator("body").innerText()).includes("Без лишней платформы вокруг"), false, "неестественный подзаголовок удалён");
   assert.equal((await page.locator("body").innerText()).includes("__VERSION__"), false, "версия подставлена при сборке");
-  assert.match(await page.locator("#install-code").textContent(), /yellow-vsl@v1\.4\.1/);
+  assert.equal((await page.locator("body").innerText()).includes("__SIZE__"), false, "размер minified-сборки подставлен при сборке");
+  assert.equal(await page.locator("#example-forward, #example-back, #example-result, #event-log, #event-count").count(), 0, "тестовые кнопки и JSON-лог удалены");
+  assert.match(await page.locator("#install-code").textContent(), /yellow-vsl@v1\.5\.0/);
   assert.match(await page.locator("#modes-code").textContent(), /\[5, 50\].*\[30, 70\].*\[50, 90\]/s);
   assert.match(await page.locator("#cta-code").textContent(), /background: "#ff3b30"/);
   assert.match(await page.locator("#docs-link").getAttribute("href"), /yellow-vsl#configuration-reference$/);
@@ -41,18 +46,20 @@ try {
   assert.equal(await page.locator("#example-player .yvsl-cta").evaluate((node) => getComputedStyle(node).backgroundColor), "rgb(255, 212, 0)", "CTA принимает свой цвет фона");
   assert.equal(await page.locator("#example-player .yvsl-cta").evaluate((node) => getComputedStyle(node).color), "rgb(23, 20, 0)", "CTA принимает свой цвет текста");
   assert.equal(await page.locator("#example-offer").isVisible(), true, "CTA раскрывает оффер");
+  assert.equal(await page.evaluate(() => window.yellowVslSite.fragmentPlayer.options.aspectRatioValue), 16 / 9, "фрагмент больше не притворяется вертикальным видео");
 
-  await page.click("#example-forward");
-  assert.equal(await page.locator("#example-result").getAttribute("data-state"), "pass", "переход вперёд заблокирован");
+  await page.click("#example-unmute");
+  assert.equal(await page.locator("#example-unmute").isHidden(), true, "одноразовая кнопка включения звука исчезает");
 
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.click("#open-popup");
   assert.equal(await page.locator(".yvsl-popup-backdrop").isVisible(), true, "popup открыт");
-  await page.waitForFunction(() => document.querySelectorAll("[data-fake-youtube]").length === 4);
-  assert.equal(await page.locator("[data-fake-youtube]").count(), 4, "popup инициализирует четвёртый плеер после открытия");
+  assert.equal(await page.locator("[data-fake-youtube]").count(), 4, "popup повторно не создаёт YouTube iframe");
+  assert.equal(await page.locator(".yvsl-popup-backdrop").evaluate((node) => getComputedStyle(node).padding), "0px", "мобильный popup занимает весь экран без белых полей");
+  assert.equal(await page.locator(".yvsl-popup-panel .yvsl-root").evaluate((node) => getComputedStyle(node).borderRadius), "0px", "у мобильного popup нет белых углов");
   await page.click(".yvsl-popup-close");
   assert.equal(await page.locator(".yvsl-popup-backdrop").isHidden(), true, "popup закрыт");
 
-  await page.setViewportSize({ width: 390, height: 844 });
   const mobile = await page.evaluate(() => ({
     viewport: innerWidth,
     pageWidth: document.documentElement.scrollWidth,

@@ -30,7 +30,7 @@ If you like this script, PLEASE DONATE!
   data-video="https://youtu.be/M7lc1UVf-VE">
 </div>
 
-<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.4.1/dist/yellow-vsl.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.5.0/dist/yellow-vsl.min.js"></script>
 ```
 
 По умолчанию включены:
@@ -71,7 +71,7 @@ npm run demo
   Этот блок откроется после просмотра питча.
 </section>
 
-<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.4.1/dist/yellow-vsl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.5.0/dist/yellow-vsl.min.js"></script>
 <script>
   const player = YellowVSL.create("#sales-video", {
     video: "https://www.youtube.com/watch?v=M7lc1UVf-VE",
@@ -116,7 +116,7 @@ npm run demo
 </script>
 ```
 
-Все значения `start`, `end`, время CTA и hooks считаются относительно начала показываемого фрагмента. Изменение скорости воспроизведения не меняет медиавремя этих событий.
+Все значения `start`, `end`, время CTA и hooks считаются относительно начала показываемого фрагмента. Изменение скорости воспроизведения не меняет секунду, на которой появляются эти элементы.
 
 CTA и hooks можно размещать снаружи кадра (`above`, `below`) или поверх видео: `top-left`, `top-right`, `bottom-left`, `bottom-right`.
 
@@ -142,7 +142,7 @@ ctas: [{
 | `progress` | object | Smart Progress | Вид и кривая шкалы |
 | `controls` | object | play, volume, progress, fullscreen | Кнопки нижней панели |
 | `stage` | object | собственная обложка и клики | Поведение области видео |
-| `aspectRatio` | `"16/9"`, `"9/16"` или другое отношение | `"16/9"` | Формат кадра |
+| `aspectRatio` | `"16/9"`, `"9/16"` или другое отношение | `"16/9"` | Формат контейнера; для 9:16 используйте вертикальное исходное видео |
 | `ctas` | array | `[]` | Кнопки по таймеру |
 | `hooks` | array | `[]` | Текстовые mini-hooks по таймеру |
 | `sticky` | boolean или object | `false` | Закреплённый mini-player |
@@ -278,11 +278,12 @@ sticky: {
 }
 
 popup: {
-  trigger: "#open-video"
+  trigger: "#open-video",
+  preload: true
 }
 ```
 
-`sticky: true` включает правый нижний угол со стандартной шириной. `popup.trigger` принимает CSS-селектор одной или нескольких внешних кнопок.
+`sticky: true` включает правый нижний угол со стандартной шириной. `popup.trigger` принимает CSS-селектор одной или нескольких внешних кнопок. `popup.preload: true` загружает YouTube заранее, чтобы окно открывалось сразу. Без `preload` iframe создаётся только при первом открытии.
 
 ### `theme`
 
@@ -361,7 +362,8 @@ const sticky = YellowVSL.create("#sticky-video", {
 ```
 
 Закрытие popup или sticky-плеера ставит видео на паузу. Скрытое фоновое воспроизведение не используется.
-YouTube-плеер внутри popup создаётся при первом открытии, поэтому запуск через внешнюю кнопку работает без промежуточного штатного интерфейса YouTube.
+
+В полноэкранном режиме панель управления автоматически скрывается через 2,4 секунды воспроизведения. Тап по видео возвращает панель без паузы; после остановки видео controls остаются видимыми.
 
 ## Оформление
 
@@ -378,7 +380,7 @@ theme: {
 }
 ```
 
-Переопределяемые строки `locale`: `play`, `pause`, `mute`, `unmute`, `fullscreen`, `exitFullscreen`, `progress`, `continueTitle`, `continue`, `restart`, `autoplayBlocked`, `close`, `speed`, `genericError`, `identityError`, `embedError`, `unavailableError`.
+Переопределяемые строки `locale`: `play`, `pause`, `mute`, `unmute`, `unmutePrompt`, `fullscreen`, `exitFullscreen`, `progress`, `continueTitle`, `continue`, `restart`, `autoplayBlocked`, `close`, `speed`, `genericError`, `identityError`, `embedError`, `unavailableError`.
 
 ## Разработка
 

@@ -1,4 +1,4 @@
-/*! YellowVSL v1.4.1 | MIT License | https://github.com/dvygolov/yellow-vsl */
+/*! YellowVSL v1.5.0 | MIT License | https://github.com/dvygolov/yellow-vsl */
 (() => {
   var __defProp = Object.defineProperty;
   var __export = (target, all) => {
@@ -153,7 +153,8 @@
     play: "\u0412\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438",
     pause: "\u041F\u0430\u0443\u0437\u0430",
     mute: "\u0412\u044B\u043A\u043B\u044E\u0447\u0438\u0442\u044C \u0437\u0432\u0443\u043A",
-    unmute: "\u0412\u043A\u043B\u044E\u0447\u0438\u0442\u044C \u0437\u0432\u0443\u043A \u0438 \u043D\u0430\u0447\u0430\u0442\u044C \u0441\u043D\u0430\u0447\u0430\u043B\u0430",
+    unmute: "\u0412\u043A\u043B\u044E\u0447\u0438\u0442\u044C \u0437\u0432\u0443\u043A",
+    unmutePrompt: "\u0412\u043A\u043B\u044E\u0447\u0438\u0442\u044C \u0437\u0432\u0443\u043A \u0438 \u043D\u0430\u0447\u0430\u0442\u044C \u0441\u043D\u0430\u0447\u0430\u043B\u0430",
     fullscreen: "\u041D\u0430 \u0432\u0435\u0441\u044C \u044D\u043A\u0440\u0430\u043D",
     exitFullscreen: "\u0412\u044B\u0439\u0442\u0438 \u0438\u0437 \u043F\u043E\u043B\u043D\u043E\u044D\u043A\u0440\u0430\u043D\u043D\u043E\u0433\u043E \u0440\u0435\u0436\u0438\u043C\u0430",
     progress: "\u041F\u0440\u043E\u0433\u0440\u0435\u0441\u0441 \u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0430",
@@ -491,8 +492,20 @@
 .yvsl-root--popup-idle { position: fixed !important; top: 0 !important; left: -100000px !important; width: min(960px, 100vw) !important; opacity: 0; pointer-events: none; }
 .yvsl-popup-panel { width: min(960px, 100%); max-height: calc(100vh - 44px); overflow: auto; }
 .yvsl-popup-close { position: fixed; top: 14px; right: 14px; z-index: 1; background: #111; }
-.yvsl-root:fullscreen { width: 100%; height: 100%; border-radius: 0; display: flex; flex-direction: column; justify-content: center; }
-.yvsl-root:fullscreen .yvsl-stage { max-height: calc(100vh - 76px); }
+.yvsl-root:fullscreen { position: relative; width: 100vw; height: 100vh; height: 100dvh; border-radius: 0; background: #000; box-shadow: none; }
+.yvsl-root:fullscreen .yvsl-stage { width: 100%; height: 100%; max-height: none; aspect-ratio: auto; }
+.yvsl-root:fullscreen .yvsl-controls {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 5;
+  padding-top: 28px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  background: linear-gradient(transparent, rgba(0, 0, 0, .88) 44%);
+  transition: opacity .22s ease, transform .22s ease;
+}
+.yvsl-root:fullscreen.yvsl-controls-hidden .yvsl-controls { opacity: 0; transform: translateY(105%); pointer-events: none; }
 .yvsl-visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; }
 @media (max-width: 520px) {
   .yvsl-controls { grid-template-columns: auto auto minmax(70px, 1fr) auto auto; padding: 8px; gap: 5px; }
@@ -504,6 +517,10 @@
   .yvsl-zone--top-right { top: 10px; right: 10px; }
   .yvsl-zone--bottom-left { bottom: 10px; left: 10px; }
   .yvsl-zone--bottom-right { right: 10px; bottom: 10px; }
+  .yvsl-popup-backdrop { padding: 0; background: #000; }
+  .yvsl-popup-panel { width: 100%; max-height: 100vh; max-height: 100dvh; overflow: hidden; }
+  .yvsl-popup-panel .yvsl-root { border-radius: 0; box-shadow: none; }
+  .yvsl-popup-close { top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); }
 }
 @media (prefers-reduced-motion: reduce) {
   .yvsl-root *, .yvsl-root *::before, .yvsl-root *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
@@ -764,6 +781,7 @@
       this.stageWarmupWasMuted = null;
       this.stageWarmupBypassNextPlay = false;
       this.stageWasRevealedBeforeBuffering = false;
+      this.fullscreenControlsTimer = null;
       this.adapterMountPromise = null;
       this.pendingPlay = false;
       this.completed = false;
@@ -795,7 +813,8 @@
       this._setupSticky();
       this._bindLifecycle();
       instances.add(this);
-      this.ready = this.options.popup ? Promise.resolve(this) : this._ensureAdapterMounted();
+      const preloadPopup = typeof this.options.popup === "object" && this.options.popup.preload === true;
+      this.ready = this.options.popup && !preloadPopup ? Promise.resolve(this) : this._ensureAdapterMounted();
     }
     _ensureAdapterMounted() {
       if (this.adapterMountPromise) return this.adapterMountPromise;
@@ -897,12 +916,15 @@
       this._listen(fullscreen, "click", () => this._toggleFullscreen());
       this._listen(stickyClose, "click", () => this._dismissSticky());
       this._listen(document, "fullscreenchange", () => this._updateFullscreenButton());
+      this._listen(root, "pointermove", () => {
+        if (document.fullscreenElement === root) this._revealFullscreenControls();
+      });
       if (this.options.stage.clickToToggle) {
-        this._listen(stageInteraction, "click", () => this.playerState === YT_STATE.PLAYING ? this.pause() : this.play());
+        this._listen(stageInteraction, "click", () => this._handleStageInteraction());
         this._listen(stageInteraction, "keydown", (event) => {
           if (event.key !== "Enter" && event.key !== " ") return;
           event.preventDefault();
-          this.playerState === YT_STATE.PLAYING ? this.pause() : this.play();
+          this._handleStageInteraction();
         });
       }
       if (this.options.stage.poster === "auto") {
@@ -971,8 +993,9 @@
       }, 1800);
     }
     _showUnmutePrompt() {
-      const button = this._button("\u{1F50A}", this.options.locale.unmute, "yvsl-btn--accent");
-      button.textContent = this.options.locale.unmute;
+      const label = this.options.locale.unmutePrompt || this.options.locale.unmute;
+      const button = this._button("\u{1F50A}", label, "yvsl-btn--accent");
+      button.textContent = label;
       this._listen(button, "click", () => this.unmute(true));
       this._showMessage("", [button]);
     }
@@ -1025,6 +1048,7 @@
         this._stopTicker();
         this.timeline.resetClock();
         this._applySticky();
+        this._revealFullscreenControls(false);
         this._updateUi();
         return;
       }
@@ -1064,6 +1088,16 @@
       }
       this._applySticky();
       this._updateUi();
+      if (state === YT_STATE.PLAYING) this._scheduleFullscreenControlsHide();
+      else this._revealFullscreenControls(false);
+    }
+    _handleStageInteraction() {
+      const fullscreen = document.fullscreenElement === this.dom.root;
+      if (fullscreen) {
+        this._revealFullscreenControls();
+        return;
+      }
+      this.playerState === YT_STATE.PLAYING ? this.pause() : this.play();
     }
     _onRateChange(rate) {
       this.timeline.rate = Number(rate) || 1;
@@ -1381,9 +1415,34 @@
     _updateFullscreenButton() {
       const active = document.fullscreenElement === this.dom.root;
       this._applySticky();
+      if (active) this._revealFullscreenControls();
+      else {
+        this._clearFullscreenControlsTimer();
+        this.dom.root.classList.remove("yvsl-controls-hidden");
+      }
       this.dom.fullscreen.textContent = active ? "\xD7" : "\u26F6";
       this.dom.fullscreen.title = active ? this.options.locale.exitFullscreen : this.options.locale.fullscreen;
       this.dom.fullscreen.setAttribute("aria-label", this.dom.fullscreen.title);
+    }
+    _clearFullscreenControlsTimer() {
+      if (!this.fullscreenControlsTimer) return;
+      window.clearTimeout(this.fullscreenControlsTimer);
+      this.fullscreenControlsTimer = null;
+    }
+    _revealFullscreenControls(scheduleHide = true) {
+      this._clearFullscreenControlsTimer();
+      this.dom.root.classList.remove("yvsl-controls-hidden");
+      if (scheduleHide) this._scheduleFullscreenControlsHide();
+    }
+    _scheduleFullscreenControlsHide() {
+      this._clearFullscreenControlsTimer();
+      if (document.fullscreenElement !== this.dom.root || this.playerState !== YT_STATE.PLAYING) return;
+      this.fullscreenControlsTimer = window.setTimeout(() => {
+        this.fullscreenControlsTimer = null;
+        if (document.fullscreenElement === this.dom.root && this.playerState === YT_STATE.PLAYING) {
+          this.dom.root.classList.add("yvsl-controls-hidden");
+        }
+      }, 2400);
     }
     _bindLifecycle() {
       this._listen(window, "pagehide", () => this._saveProgress());
@@ -1525,6 +1584,7 @@
       this._saveProgress();
       this.destroyed = true;
       this._stopTicker();
+      this._clearFullscreenControlsTimer();
       this._cancelStageWarmup();
       this.stickyObserver?.disconnect();
       this.adapter?.destroy();
@@ -1548,7 +1608,7 @@
   }
 
   // src/index.js
-  var version = "1.4.1";
+  var version = "1.5.0";
   var autoInstances = /* @__PURE__ */ new WeakMap();
   function create(target, options = {}) {
     return new YellowVSLPlayer(target, options);

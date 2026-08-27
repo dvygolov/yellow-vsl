@@ -14,7 +14,7 @@
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="YellowVSL - бесплатный VSL-плеер на YouTube" data-i18n-content="meta.title">
-  <meta name="twitter:description" content="Vanilla JS, YouTube backend, MIT. Живые примеры и готовый CDN-сниппет." data-i18n-content="meta.twitterDescription">
+  <meta name="twitter:description" content="Vanilla JS, YouTube backend, MIT. Рабочие примеры и готовый CDN-сниппет." data-i18n-content="meta.twitterDescription">
   <meta name="twitter:image" content="https://yellowvsl.pages.dev/og.png">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ffd400'/%3E%3Cpath d='M19 16h10l5 12 5-12h10L38 38v10H27V38z' fill='%23111216'/%3E%3C/svg%3E">
   <script src="./i18n.js"></script>
@@ -50,21 +50,21 @@
       <div class="hero-copy">
         <p class="eyebrow" data-i18n="hero.eyebrow">Open source · MIT · v__VERSION__</p>
         <h1><span class="hero-title-main" data-i18n="hero.title">VSL-плеер на YouTube.</span><br><span data-i18n="hero.highlight">Без оплаты за просмотры.</span></h1>
-        <p class="hero-lead" data-i18n="hero.lead">Собственный интерфейс, Smart Autoplay, Smart Progress, CTA и продолжение просмотра. Один JavaScript-файл, никакого кабинета и серверной части.</p>
+        <p class="hero-lead" data-i18n="hero.lead">Собственный интерфейс, Smart Autoplay, Smart Progress, CTA и продолжение просмотра. Для подключения нужен один JavaScript-файл. Кабинета и серверной части нет.</p>
         <div class="hero-actions">
-          <a class="button button--primary" href="#examples" data-i18n="hero.examples">Открыть живые примеры</a>
+          <a class="button button--primary" href="#examples" data-i18n="hero.examples">Открыть пример</a>
           <a class="button" href="https://github.com/dvygolov/yellow-vsl/releases/latest/download/yellow-vsl.min.js" data-i18n="hero.download">Скачать __VERSION__</a>
         </div>
         <ul class="hero-facts" aria-label="Ключевые свойства" data-i18n-aria="hero.facts">
           <li><strong data-i18n="hero.cost">0 ₽</strong><span data-i18n="hero.traffic">за видеотрафик</span></li>
-          <li><strong data-i18n="hero.size">44 КБ</strong><span data-i18n="hero.bundle">minified-сборка</span></li>
+          <li><strong data-i18n="hero.size">__SIZE__ КБ</strong><span data-i18n="hero.bundle">minified-сборка</span></li>
           <li><strong>0</strong><span data-i18n="hero.dependencies">runtime-зависимостей</span></li>
         </ul>
       </div>
 
-      <div class="hero-demo" aria-label="Живой пример YellowVSL" data-i18n-aria="hero.demo">
+      <div class="hero-demo" aria-label="Пример YellowVSL" data-i18n-aria="hero.demo">
         <div class="demo-window">
-          <div class="window-bar"><span></span><span></span><span></span><strong data-i18n="hero.backend">Живой YouTube backend</strong></div>
+          <div class="window-bar"><span></span><span></span><span></span><strong data-i18n="hero.backend">Видео загружается с YouTube</strong></div>
           <div id="hero-player"></div>
         </div>
       </div>
@@ -77,14 +77,14 @@
     <section id="features" class="section block">
       <div class="section-heading">
         <p class="eyebrow" data-i18n="features.eyebrow">Основные возможности</p>
-        <h2><span data-i18n="features.title">Всё, что нужно VSL-лендингу.</span><br><span data-i18n="features.title2">Без лишней платформы вокруг.</span></h2>
-        <p data-i18n="features.lead">YellowVSL использует YouTube как видеобэкенд и оставляет посетителю только интерфейс вашего VSL-плеера.</p>
+        <h2><span data-i18n="features.title">Функции для VSL-лендинга</span></h2>
+        <p data-i18n="features.lead">Видео хранится и загружается через YouTube. YellowVSL добавляет свою панель управления, Smart Progress, CTA и другие функции VSL-плеера.</p>
       </div>
       <div class="feature-grid">
         <article class="feature-card feature-card--wide">
           <span class="feature-number">01</span>
-          <h3 data-i18n="feature.1.title">Smart Progress включён по умолчанию</h3>
-          <p data-i18n="feature.1.text">Первые 10% просмотра занимают 30% визуальной шкалы, 50% превращаются в 75%, а окончание всегда остаётся честными 100%.</p>
+          <h3 data-i18n="feature.1.title">Smart Progress</h3>
+          <p data-i18n="feature.1.text">Первые 10% просмотра занимают 30% шкалы, а 50% - 75%. Контрольные точки можно настроить под свой ролик.</p>
           <div class="curve" aria-label="Пример кривой Smart Progress" data-i18n-aria="feature.1.curve"><span style="--x:0%;--y:0%">0</span><span style="--x:10%;--y:30%">10→30</span><span style="--x:50%;--y:75%">50→75</span><span style="--x:100%;--y:100%">100</span></div>
         </article>
         <article class="feature-card">
@@ -99,58 +99,55 @@
         </article>
         <article class="feature-card">
           <span class="feature-number">04</span>
-          <h3 data-i18n="feature.4.title">CTA и раскрытие лендинга</h3>
-          <p data-i18n="feature.4.text">Покажите CTA в любом углу кадра, mini-hook или любой блок страницы в нужную секунду медиавремени.</p>
+          <h3 data-i18n="feature.4.title">CTA, подсказки и блоки лендинга</h3>
+          <p data-i18n="feature.4.text">CTA - кликабельная кнопка со ссылкой. Mini-hook - короткая текстовая подсказка без ссылки. Для скрытого блока укажите CSS-селектор, например #offer или .order-form. Плеер покажет его на заданной секунде.</p>
         </article>
         <article class="feature-card">
           <span class="feature-number">05</span>
           <h3 data-i18n="feature.5.title">Continue Watching</h3>
-          <p data-i18n="feature.5.text">Позиция хранится локально 30 дней. При возвращении зритель выбирает: продолжить или начать сначала.</p>
+          <p data-i18n="feature.5.text">Количество просмотренных секунд хранится в браузере пользователя 30 дней. При возвращении зритель выбирает: продолжить или начать сначала.</p>
         </article>
         <article class="feature-card">
           <span class="feature-number">06</span>
           <h3 data-i18n="feature.6.title">Popup, sticky и fullscreen</h3>
-          <p data-i18n="feature.6.text">Закрытие или скрытие плеера всегда ставит видео на паузу. Фоновое воспроизведение исключено.</p>
+          <p data-i18n="feature.6.text">В полноэкранном режиме панель управления скрывается после запуска и возвращается по тапу. Закрытие popup или sticky ставит видео на паузу.</p>
         </article>
       </div>
     </section>
 
     <section id="examples" class="section block block--examples">
       <div class="section-heading">
-        <p class="eyebrow" data-i18n="examples.eyebrow">Живые примеры</p>
+        <p class="eyebrow" data-i18n="examples.eyebrow">Примеры</p>
         <h2 data-i18n="examples.title">Проверьте функции прямо здесь</h2>
-        <p data-i18n="examples.lead">Все примеры работают на одном публичном YouTube-видео и текущей production-сборке YellowVSL.</p>
+        <p data-i18n="examples.lead">Все примеры используют выбранное YouTube-видео и последнюю стабильную версию YellowVSL.</p>
       </div>
 
       <div class="examples-grid">
         <article class="example-card example-card--main">
           <div class="example-head">
-            <div><span class="example-kicker" data-i18n="examples.main.kicker">Основной VSL</span><h3 data-i18n="examples.main.title">CTA в углу, mini-hook и Smart Progress</h3></div>
+            <div><span class="example-kicker" data-i18n="examples.main.kicker">Основной VSL</span><h3 data-i18n="examples.main.title">Smart Progress, CTA и подсказка по таймеру</h3></div>
             <span class="status-pill" data-i18n="examples.main.duration">Полное видео · 39:15</span>
           </div>
           <div id="example-player"></div>
           <div class="example-actions">
             <button id="example-unmute" class="button button--primary" type="button" data-i18n="examples.main.unmute">Включить звук + сначала</button>
-            <button id="example-forward" class="button" type="button" data-i18n="examples.main.forward">Попробовать +60 сек</button>
-            <button id="example-back" class="button" type="button" data-i18n="examples.main.back">Назад на 2 сек</button>
           </div>
-          <div id="example-result" class="example-result" data-i18n="examples.main.result">На второй секунде появится mini-hook слева сверху, на шестой - CTA справа снизу и оффер.</div>
-          <div id="example-offer" class="offer" hidden><strong data-i18n="examples.main.offerTitle">Оффер открыт</strong><span data-i18n="examples.main.offerText">Этот блок был скрыт до шестой секунды медиавремени.</span></div>
+          <div id="example-offer" class="offer" hidden><strong data-i18n="examples.main.offerTitle">Оффер открыт</strong><span data-i18n="examples.main.offerText">Блок #example-offer был скрыт при загрузке страницы и появился на шестой секунде.</span></div>
         </article>
 
-        <article class="example-card example-card--vertical">
+        <article class="example-card example-card--fragment">
           <div class="example-head">
-            <div><span class="example-kicker" data-i18n="examples.fragment.kicker">Фрагмент</span><h3 data-i18n="examples.fragment.title">9:16 · 10-16 сек · 1.5× · loop</h3></div>
+            <div><span class="example-kicker" data-i18n="examples.fragment.kicker">Фрагмент</span><h3 data-i18n="examples.fragment.title">10-16 сек · 1,5× · повтор</h3></div>
           </div>
-          <div class="vertical-demo"><div id="vertical-player"></div></div>
-          <button id="vertical-start" class="button button--primary button--full" type="button" data-i18n="examples.fragment.start">Запустить фрагмент</button>
+          <div class="fragment-demo"><div id="fragment-player"></div></div>
+          <button id="fragment-start" class="button button--primary button--full" type="button" data-i18n="examples.fragment.start">Запустить фрагмент</button>
         </article>
 
         <article class="example-card example-card--popup">
           <div>
             <span class="example-kicker">Popup</span>
-            <h3 data-i18n="examples.popup.title">Видео поверх страницы</h3>
-            <p data-i18n="examples.popup.text">При открытии popup другие экземпляры автоматически ставятся на паузу. Закрытие останавливает и сам popup.</p>
+            <h3 data-i18n="examples.popup.title">Видео по кнопке поверх страницы</h3>
+            <p data-i18n="examples.popup.text">Popup нужен, когда видео должно открываться по кнопке и не занимать место в макете. Плеер загружается заранее; при закрытии видео ставится на паузу.</p>
           </div>
           <button id="open-popup" class="button button--primary" type="button" data-i18n="examples.popup.open">Открыть popup-плеер</button>
           <div id="popup-player"></div>
@@ -158,11 +155,15 @@
 
         <article class="example-card example-card--events">
           <div class="example-head">
-            <div><span class="example-kicker" data-i18n="examples.events.kicker">События</span><h3 data-i18n="examples.events.title">Аналитика остаётся вашей</h3></div>
-            <span id="event-count" class="status-pill">0</span>
+            <div><span class="example-kicker" data-i18n="examples.events.kicker">События</span><h3 data-i18n="examples.events.title">Что можно отслеживать</h3></div>
           </div>
-          <p data-i18n="examples.events.text">YellowVSL ничего не отправляет сам. События всплывают в DOM, а вы подключаете нужную аналитику.</p>
-          <pre id="event-log" class="event-log" data-i18n="examples.events.waiting">Ожидание событий...</pre>
+          <p data-i18n="examples.events.text">Плеер создаёт браузерные события, которые можно передать в Метрику, GA4 или свою систему аналитики.</p>
+          <ul class="event-list">
+            <li data-i18n="examples.events.play">Запуск и пауза</li>
+            <li data-i18n="examples.events.progress">Прогресс просмотра и продолжение</li>
+            <li data-i18n="examples.events.cta">Показ и клик по CTA</li>
+            <li data-i18n="examples.events.complete">Завершение просмотра и ошибки</li>
+          </ul>
         </article>
       </div>
     </section>
@@ -186,7 +187,7 @@
       <div class="install-notes">
         <div><strong data-i18n="install.links.title">Поддерживаемые ссылки</strong><span data-i18n="install.links.text">youtube.com, youtu.be, Shorts, embed и чистый ID</span></div>
         <div><strong data-i18n="install.multi.title">Несколько плееров</strong><span data-i18n="install.multi.text">Можно размещать сколько угодно экземпляров на одной странице</span></div>
-        <div><strong data-i18n="install.design.title">Настройка дизайна</strong><span data-i18n="install.design.text">CSS-переменные, цвета, радиус и 16:9 / 9:16</span></div>
+        <div><strong data-i18n="install.design.title">Настройка дизайна</strong><span data-i18n="install.design.text">CSS-переменные, цвета и радиус. Для формата 9:16 используйте вертикальное исходное видео</span></div>
       </div>
 
       <div class="config-examples">

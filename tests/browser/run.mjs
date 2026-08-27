@@ -112,6 +112,8 @@ try {
     await page.waitForFunction(() => document.querySelector("#warmup .yvsl-poster")?.hidden === true);
     assert.equal(await page.evaluate(() => window.warmupPlayer.getState().muted), false, `${name}: audio restored after warmup`);
     await page.evaluate(() => window.warmupPlayer.destroy());
+    await page.evaluate(() => window.mainPlayer.play());
+    await page.waitForFunction(() => window.mainPlayer.getState().playerState === 1);
 
     const fullscreenButton = page.locator("#main .yvsl-fullscreen");
     if (await fullscreenButton.isVisible()) {
@@ -119,6 +121,11 @@ try {
       await page.waitForFunction(() => document.fullscreenElement?.classList.contains("yvsl-root"));
       assert.match(await fullscreenButton.getAttribute("aria-label"), /выйти/i, `${name}: fullscreen enters`);
       assert.equal(await page.locator("#main .yvsl-root--sticky").count(), 0, `${name}: fullscreen suppresses sticky mode`);
+      await page.waitForFunction(() => document.querySelector("#main .yvsl-root")?.classList.contains("yvsl-controls-hidden"), { timeout: 4000 });
+      assert.equal(await page.evaluate(() => window.mainPlayer.getState().playerState), 1, `${name}: fullscreen controls hide while playback continues`);
+      await page.locator("#main .yvsl-stage-interaction").click();
+      assert.equal(await page.locator("#main .yvsl-root").evaluate((node) => node.classList.contains("yvsl-controls-hidden")), false, `${name}: fullscreen tap reveals controls`);
+      assert.equal(await page.evaluate(() => window.mainPlayer.getState().playerState), 1, `${name}: revealing fullscreen controls does not pause playback`);
       await page.evaluate(() => document.exitFullscreen());
       await page.waitForFunction(() => !document.fullscreenElement);
     }

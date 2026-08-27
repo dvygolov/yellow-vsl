@@ -156,8 +156,20 @@ export const STYLES = `
 .yvsl-root--popup-idle { position: fixed !important; top: 0 !important; left: -100000px !important; width: min(960px, 100vw) !important; opacity: 0; pointer-events: none; }
 .yvsl-popup-panel { width: min(960px, 100%); max-height: calc(100vh - 44px); overflow: auto; }
 .yvsl-popup-close { position: fixed; top: 14px; right: 14px; z-index: 1; background: #111; }
-.yvsl-root:fullscreen { width: 100%; height: 100%; border-radius: 0; display: flex; flex-direction: column; justify-content: center; }
-.yvsl-root:fullscreen .yvsl-stage { max-height: calc(100vh - 76px); }
+.yvsl-root:fullscreen { position: relative; width: 100vw; height: 100vh; height: 100dvh; border-radius: 0; background: #000; box-shadow: none; }
+.yvsl-root:fullscreen .yvsl-stage { width: 100%; height: 100%; max-height: none; aspect-ratio: auto; }
+.yvsl-root:fullscreen .yvsl-controls {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 5;
+  padding-top: 28px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  background: linear-gradient(transparent, rgba(0, 0, 0, .88) 44%);
+  transition: opacity .22s ease, transform .22s ease;
+}
+.yvsl-root:fullscreen.yvsl-controls-hidden .yvsl-controls { opacity: 0; transform: translateY(105%); pointer-events: none; }
 .yvsl-visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; }
 @media (max-width: 520px) {
   .yvsl-controls { grid-template-columns: auto auto minmax(70px, 1fr) auto auto; padding: 8px; gap: 5px; }
@@ -169,6 +181,10 @@ export const STYLES = `
   .yvsl-zone--top-right { top: 10px; right: 10px; }
   .yvsl-zone--bottom-left { bottom: 10px; left: 10px; }
   .yvsl-zone--bottom-right { right: 10px; bottom: 10px; }
+  .yvsl-popup-backdrop { padding: 0; background: #000; }
+  .yvsl-popup-panel { width: 100%; max-height: 100vh; max-height: 100dvh; overflow: hidden; }
+  .yvsl-popup-panel .yvsl-root { border-radius: 0; box-shadow: none; }
+  .yvsl-popup-close { top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); }
 }
 @media (prefers-reduced-motion: reduce) {
   .yvsl-root *, .yvsl-root *::before, .yvsl-root *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }

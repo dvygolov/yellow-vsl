@@ -55,6 +55,7 @@ export class YellowVSLPlayer {
     this.stageWarmupWasMuted = null;
     this.stageWarmupBypassNextPlay = false;
     this.stageWasRevealedBeforeBuffering = false;
+    this.fullscreenControlsTimer = null;
     this.adapterMountPromise = null;
     this.pendingPlay = false;
     this.completed = false;
@@ -90,7 +91,8 @@ export class YellowVSLPlayer {
     this._bindLifecycle();
     instances.add(this);
 
-    this.ready = this.options.popup ? Promise.resolve(this) : this._ensureAdapterMounted();
+    const preloadPopup = typeof this.options.popup === "object" && this.options.popup.preload === true;
+    this.ready = this.options.popup && !preloadPopup ? Promise.resolve(this) : this._ensureAdapterMounted();
   }
 
   _ensureAdapterMounted() {
@@ -203,12 +205,15 @@ export class YellowVSLPlayer {
     this._listen(fullscreen, "click", () => this._toggleFullscreen());
     this._listen(stickyClose, "click", () => this._dismissSticky());
     this._listen(document, "fullscreenchange", () => this._updateFullscreenButton());
+    this._listen(root, "pointermove", () => {
+      if (document.fullscreenElement === root) this._revealFullscreenControls();
+    });
     if (this.options.stage.clickToToggle) {
-      this._listen(stageInteraction, "click", () => this.playerState === YT_STATE.PLAYING ? this.pause() : this.play());
+      this._listen(stageInteraction, "click", () => this._handleStageInteraction());
       this._listen(stageInteraction, "keydown", (event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
         event.preventDefault();
-        this.playerState === YT_STATE.PLAYING ? this.pause() : this.play();
+        this._handleStageInteraction();
       });
     }
     if (this.options.stage.poster === "auto") {
@@ -285,8 +290,9 @@ export class YellowVSLPlayer {
   }
 
   _showUnmutePrompt() {
-    const button = this._button("🔊", this.options.locale.unmute, "yvsl-btn--accent");
-    button.textContent = this.options.locale.unmute;
+    const label = this.options.locale.unmutePrompt || this.options.locale.unmute;
+    const button = this._button("🔊", label, "yvsl-btn--accent");
+    button.textContent = label;
     this._listen(button, "click", () => this.unmute(true));
     this._showMessage("", [button]);
   }
@@ -345,6 +351,7 @@ export class YellowVSLPlayer {
       this._stopTicker();
       this.timeline.resetClock();
       this._applySticky();
+      this._revealFullscreenControls(false);
       this._updateUi();
       return;
     }
@@ -384,6 +391,17 @@ export class YellowVSLPlayer {
     }
     this._applySticky();
     this._updateUi();
+    if (state === YT_STATE.PLAYING) this._scheduleFullscreenControlsHide();
+    else this._revealFullscreenControls(false);
+  }
+
+  _handleStageInteraction() {
+    const fullscreen = document.fullscreenElement === this.dom.root;
+    if (fullscreen) {
+      this._revealFullscreenControls();
+      return;
+    }
+    this.playerState === YT_STATE.PLAYING ? this.pause() : this.play();
   }
 
   _onRateChange(rate) {
@@ -746,9 +764,37 @@ export class YellowVSLPlayer {
   _updateFullscreenButton() {
     const active = document.fullscreenElement === this.dom.root;
     this._applySticky();
+    if (active) this._revealFullscreenControls();
+    else {
+      this._clearFullscreenControlsTimer();
+      this.dom.root.classList.remove("yvsl-controls-hidden");
+    }
     this.dom.fullscreen.textContent = active ? "×" : "⛶";
     this.dom.fullscreen.title = active ? this.options.locale.exitFullscreen : this.options.locale.fullscreen;
     this.dom.fullscreen.setAttribute("aria-label", this.dom.fullscreen.title);
+  }
+
+  _clearFullscreenControlsTimer() {
+    if (!this.fullscreenControlsTimer) return;
+    window.clearTimeout(this.fullscreenControlsTimer);
+    this.fullscreenControlsTimer = null;
+  }
+
+  _revealFullscreenControls(scheduleHide = true) {
+    this._clearFullscreenControlsTimer();
+    this.dom.root.classList.remove("yvsl-controls-hidden");
+    if (scheduleHide) this._scheduleFullscreenControlsHide();
+  }
+
+  _scheduleFullscreenControlsHide() {
+    this._clearFullscreenControlsTimer();
+    if (document.fullscreenElement !== this.dom.root || this.playerState !== YT_STATE.PLAYING) return;
+    this.fullscreenControlsTimer = window.setTimeout(() => {
+      this.fullscreenControlsTimer = null;
+      if (document.fullscreenElement === this.dom.root && this.playerState === YT_STATE.PLAYING) {
+        this.dom.root.classList.add("yvsl-controls-hidden");
+      }
+    }, 2400);
   }
 
   _bindLifecycle() {
@@ -901,6 +947,7 @@ export class YellowVSLPlayer {
     this._saveProgress();
     this.destroyed = true;
     this._stopTicker();
+    this._clearFullscreenControlsTimer();
     this._cancelStageWarmup();
     this.stickyObserver?.disconnect();
     this.adapter?.destroy();

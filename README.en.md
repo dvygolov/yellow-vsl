@@ -30,7 +30,7 @@ A free vanilla JavaScript VSL player backed by YouTube. YellowVSL adds Smart Aut
   data-video="https://youtu.be/M7lc1UVf-VE">
 </div>
 
-<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.4.1/dist/yellow-vsl.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.5.0/dist/yellow-vsl.min.js"></script>
 ```
 
 The defaults include:
@@ -69,7 +69,7 @@ Open `http://127.0.0.1:4173/demo/`. The demo covers Smart Autoplay, Smart Progre
   This block is revealed after the pitch.
 </section>
 
-<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.4.1/dist/yellow-vsl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.5.0/dist/yellow-vsl.min.js"></script>
 <script>
   const player = YellowVSL.create("#sales-video", {
     video: "https://www.youtube.com/watch?v=M7lc1UVf-VE",
@@ -131,7 +131,7 @@ All `start`, `end`, CTA and hook times use media time relative to the beginning 
 | `progress` | object | Smart Progress | Progress mode and curve |
 | `controls` | object | play, volume, progress, fullscreen | Bottom control bar |
 | `stage` | object | custom poster and click layer | Video stage behavior |
-| `aspectRatio` | `"16/9"`, `"9/16"` or another ratio | `"16/9"` | Player shape |
+| `aspectRatio` | `"16/9"`, `"9/16"` or another ratio | `"16/9"` | Container shape; use a vertical source video for 9:16 |
 | `ctas` | array | `[]` | Timed CTA buttons |
 | `hooks` | array | `[]` | Timed mini-hook text |
 | `sticky` | boolean or object | `false` | Sticky mini-player |
@@ -267,11 +267,14 @@ sticky: {
 }
 
 popup: {
-  trigger: "#open-video"
+  trigger: "#open-video",
+  preload: true
 }
 ```
 
-`sticky: true` uses the bottom-right corner and default width. `popup.trigger` accepts a CSS selector for one or more external buttons.
+`sticky: true` uses the bottom-right corner and default width. `popup.trigger` accepts a CSS selector for one or more external buttons. `popup.preload: true` loads YouTube in advance so the dialog opens immediately. Without `preload`, the iframe is created on first open.
+
+Fullscreen controls hide automatically after 2.4 seconds of playback. Tapping the video reveals them without pausing; controls remain visible while playback is paused.
 
 ### `theme`
 
@@ -285,7 +288,7 @@ popup: {
 | `radius` | `--yvsl-radius` |
 | `shadow` | `--yvsl-shadow` |
 
-Overridable `locale` strings: `play`, `pause`, `mute`, `unmute`, `fullscreen`, `exitFullscreen`, `progress`, `continueTitle`, `continue`, `restart`, `autoplayBlocked`, `close`, `speed`, `genericError`, `identityError`, `embedError`, `unavailableError`.
+Overridable `locale` strings: `play`, `pause`, `mute`, `unmute`, `unmutePrompt`, `fullscreen`, `exitFullscreen`, `progress`, `continueTitle`, `continue`, `restart`, `autoplayBlocked`, `close`, `speed`, `genericError`, `identityError`, `embedError`, `unavailableError`.
 
 ## Declarative attributes
 
