@@ -127,7 +127,7 @@ try {
       window.warmupPlayer.play();
       return {
         posterVisible: !mount.querySelector(".yvsl-poster").hidden,
-        muted: window.warmupPlayer.getState().muted
+        muted: window.warmupPlayer.adapter.isMuted()
       };
     });
     assert.equal(warmup.posterVisible, true, `${name}: own poster covers native startup UI`);
@@ -135,6 +135,38 @@ try {
     await page.waitForFunction(() => document.querySelector("#warmup .yvsl-poster")?.hidden === true);
     assert.equal(await page.evaluate(() => window.warmupPlayer.getState().muted), false, `${name}: audio restored after warmup`);
     await page.evaluate(() => window.warmupPlayer.destroy());
+
+    const delayedMuteIntent = await page.evaluate(async () => {
+      const mount = document.createElement("div");
+      mount.id = "delayed-mute";
+      document.body.append(mount);
+      const player = window.YellowVSL.create(mount, {
+        video: "M7lc1UVf-VE",
+        playback: { autoplay: false, resume: false },
+        stage: { revealDelay: 120 }
+      });
+      await player.ready;
+      player.pause();
+      const applyMute = player.adapter.mute.bind(player.adapter);
+      let unmuteCalls = 0;
+      const applyUnmute = player.adapter.unmute.bind(player.adapter);
+      player.adapter.mute = () => window.setTimeout(applyMute, 80);
+      player.adapter.unmute = () => {
+        unmuteCalls += 1;
+        applyUnmute();
+      };
+      player.mute();
+      const mutedImmediately = player.getState().muted;
+      player.play();
+      await new Promise((resolveWait) => window.setTimeout(resolveWait, 220));
+      const state = player.getState();
+      player.destroy();
+      return { mutedImmediately, state, unmuteCalls };
+    });
+    assert.equal(delayedMuteIntent.mutedImmediately, true, `${name}: mute intent is immediate before YouTube confirms it`);
+    assert.equal(delayedMuteIntent.state.playerState, 1, `${name}: delayed mute test is playing`);
+    assert.equal(delayedMuteIntent.state.muted, true, `${name}: play preserves explicit mute intent`);
+    assert.equal(delayedMuteIntent.unmuteCalls, 0, `${name}: warmup never cancels explicit mute`);
     await page.evaluate(() => window.mainPlayer.play());
     await page.waitForFunction(() => window.mainPlayer.getState().playerState === 1);
 

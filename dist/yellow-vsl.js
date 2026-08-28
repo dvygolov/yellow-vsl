@@ -1,4 +1,4 @@
-/*! YellowVSL v1.5.1 | MIT License | https://github.com/dvygolov/yellow-vsl */
+/*! YellowVSL v1.5.2 | MIT License | https://github.com/dvygolov/yellow-vsl */
 (() => {
   var __defProp = Object.defineProperty;
   var __export = (target, all) => {
@@ -781,6 +781,7 @@
       this.stageWarmupWasMuted = null;
       this.stageWarmupBypassNextPlay = false;
       this.stageWasRevealedBeforeBuffering = false;
+      this.mutedIntent = null;
       this.fullscreenControlsTimer = null;
       this.adapterMountPromise = null;
       this.pendingPlay = false;
@@ -910,7 +911,7 @@
       this.mount.replaceChildren(sentinel, root);
       this.dom = { root, sentinel, above, message, stage, playerHost, stageInteraction, poster, posterImage, posterPlay, stageOverlay, topLeft, topRight, bottomLeft, bottomRight, error, controls, play, volume, progress, time, speed, fullscreen, stickyClose, below };
       this._listen(play, "click", () => this.playerState === YT_STATE.PLAYING ? this.pause() : this.play());
-      this._listen(volume, "click", () => this.adapter?.isMuted?.() ? this.unmute() : this.mute());
+      this._listen(volume, "click", () => this._isMuted() ? this.unmute() : this.mute());
       this._listen(progress, "input", () => this._seekFromProgress());
       this._listen(speed, "change", () => this._setRate(Number(speed.value)));
       this._listen(fullscreen, "click", () => this._toggleFullscreen());
@@ -963,6 +964,8 @@
     _onReady() {
       if (this.destroyed || this.readyState) return;
       this.readyState = true;
+      if (this.mutedIntent == null) this.mutedIntent = this.adapter?.isMuted?.() ?? false;
+      else this._syncMutedIntent();
       this._refreshDuration();
       this._populateRates();
       this._setRate(this.options.playback.rate);
@@ -986,7 +989,7 @@
     }
     _startSmartAutoplay() {
       this.mute();
-      this.adapter?.play();
+      this.play();
       this._showUnmutePrompt();
       window.setTimeout(() => {
         if (!this.destroyed && this.playerState !== YT_STATE.PLAYING) this._showAutoplayFallback();
@@ -1019,15 +1022,13 @@
       restartButton.textContent = this.options.locale.restart;
       this._listen(continueButton, "click", () => {
         this.seek(this.saved.position);
-        this.adapter?.unmute();
-        this._hideMessage();
+        this.unmute();
         this.play();
         this._emit("resume", { action: "continue", position: this.saved.position });
       });
       this._listen(restartButton, "click", () => {
         this.seek(0);
-        this.adapter?.unmute();
-        this._hideMessage();
+        this.unmute();
         this.play();
         this._emit("resume", { action: "restart", position: 0 });
       });
@@ -1172,6 +1173,7 @@
         this.adapter.seekTo(this.options.playback.start);
         this.timeline.current = 0;
         this.timeline.resetClock();
+        this._syncMutedIntent();
         this.adapter.play();
       } else {
         this.adapter.pause();
@@ -1186,7 +1188,7 @@
       this.dom.play.setAttribute("aria-label", this.dom.play.title);
       this.dom.stageInteraction.setAttribute("aria-label", this.dom.play.title);
       this.dom.poster.hidden = this.options.stage.poster === false || displayingVideo && this.stageRevealed;
-      const muted = this.adapter?.isMuted?.() ?? true;
+      const muted = this._isMuted();
       this.dom.volume.textContent = muted ? "\u{1F507}" : "\u{1F50A}";
       this.dom.volume.title = muted ? this.options.locale.unmute : this.options.locale.mute;
       this.dom.volume.setAttribute("aria-label", this.dom.volume.title);
@@ -1227,7 +1229,7 @@
       }
       const returnPosition = this.timeline.current;
       this.stageRevealed = false;
-      this.stageWarmupWasMuted = this.adapter?.isMuted?.() ?? true;
+      this.stageWarmupWasMuted = this._isMuted();
       if (!this.stageWarmupWasMuted) this.adapter?.mute?.();
       this.dom.posterPlay.textContent = "\u2026";
       this.stageWarmupTimer = window.setTimeout(() => {
@@ -1237,7 +1239,7 @@
         this.adapter?.seekTo?.(this.timeline.start + returnPosition);
         this.timeline.current = returnPosition;
         this.timeline.resetClock();
-        if (this.stageWarmupWasMuted === false) this.adapter?.unmute?.();
+        this._syncMutedIntent();
         this.stageWarmupWasMuted = null;
         this.stageRevealed = true;
         this.dom.posterPlay.textContent = "\u25B6";
@@ -1247,7 +1249,7 @@
     _cancelStageWarmup() {
       if (this.stageWarmupTimer) window.clearTimeout(this.stageWarmupTimer);
       this.stageWarmupTimer = null;
-      if (this.stageWarmupWasMuted === false) this.adapter?.unmute?.();
+      if (this.stageWarmupWasMuted != null) this._syncMutedIntent();
       this.stageWarmupWasMuted = null;
       if (this.dom?.posterPlay) this.dom.posterPlay.textContent = "\u25B6";
     }
@@ -1487,6 +1489,7 @@
         this.ready.then(() => {
           if (!this.destroyed && this.pendingPlay) {
             this.pendingPlay = false;
+            this._syncMutedIntent();
             this.adapter?.play();
           }
         }).catch(() => {
@@ -1495,6 +1498,7 @@
         return this;
       }
       this.pendingPlay = false;
+      this._syncMutedIntent();
       this.adapter.play();
       return this;
     }
@@ -1504,16 +1508,26 @@
       return this;
     }
     mute() {
+      this.mutedIntent = true;
       this.adapter?.mute();
       this._updateUi();
       return this;
     }
     unmute(restart = false) {
       if (restart) this.seek(0);
+      this.mutedIntent = false;
       this.adapter?.unmute();
       this._hideMessage();
       this._updateUi();
       return this;
+    }
+    _isMuted() {
+      return this.mutedIntent ?? (this.adapter?.isMuted?.() ?? true);
+    }
+    _syncMutedIntent() {
+      if (!this.adapter || this.mutedIntent == null) return;
+      if (this.mutedIntent) this.adapter.mute();
+      else this.adapter.unmute();
     }
     seek(seconds) {
       const requested = clamp(seconds, 0, this.timeline.duration || Infinity);
@@ -1575,7 +1589,7 @@
         currentTime: this.timeline.current,
         duration: this.timeline.duration,
         maxWatched: this.timeline.maxWatched,
-        muted: this.adapter?.isMuted?.() ?? true,
+        muted: this._isMuted(),
         rate: this.timeline.rate,
         popupOpen: this.popupOpen,
         sticky: this.dom.root.classList.contains("yvsl-root--sticky")
@@ -1610,7 +1624,7 @@
   }
 
   // src/index.js
-  var version = "1.5.1";
+  var version = "1.5.2";
   var autoInstances = /* @__PURE__ */ new WeakMap();
   function create(target, options = {}) {
     return new YellowVSLPlayer(target, options);
