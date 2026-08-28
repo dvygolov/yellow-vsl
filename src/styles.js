@@ -50,13 +50,17 @@ export const STYLES = `
 .yvsl-zone:empty { display: none; }
 .yvsl-zone--above { padding: 12px 14px 0; }
 .yvsl-zone--below { padding: 0 14px 12px; }
-.yvsl-hook {
+.yvsl-root .yvsl-hook {
   margin: 0;
   padding: 10px 12px;
-  color: var(--yvsl-text);
-  background: color-mix(in srgb, var(--yvsl-accent) 16%, transparent);
-  border-left: 3px solid var(--yvsl-accent);
+  color: #fff;
+  background: rgba(8, 10, 12, .92);
+  border: 1px solid rgba(255,255,255,.2);
+  border-left: 4px solid var(--yvsl-accent);
   border-radius: 8px;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0,0,0,.72);
+  backdrop-filter: blur(8px);
   text-align: center;
 }
 .yvsl-cta {
@@ -100,6 +104,19 @@ export const STYLES = `
   cursor: pointer;
 }
 .yvsl-btn:hover { background: rgba(255, 255, 255, .08); }
+.yvsl-play.yvsl-is-loading, .yvsl-poster__play.yvsl-is-loading { color: transparent; font-size: 0; padding-left: 0; }
+.yvsl-play.yvsl-is-loading::after, .yvsl-poster__play.yvsl-is-loading::after {
+  content: "";
+  width: 18px;
+  aspect-ratio: 1;
+  border: 3px solid rgba(255,255,255,.36);
+  border-top-color: var(--yvsl-accent);
+  border-radius: 50%;
+  animation: yvsl-spin .72s linear infinite;
+}
+.yvsl-poster__play.yvsl-is-loading::after { width: clamp(24px, 4vw, 34px); border-width: 4px; border-color: rgba(23,20,0,.28); border-top-color: #171400; }
+@keyframes yvsl-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .yvsl-is-loading::after { animation-duration: 1.6s; } }
 .yvsl-btn:focus-visible, .yvsl-progress:focus-visible, .yvsl-cta:focus-visible, .yvsl-speed:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--yvsl-accent) 70%, white);
   outline-offset: 2px;

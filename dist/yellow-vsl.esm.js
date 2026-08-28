@@ -1,4 +1,4 @@
-/*! YellowVSL v1.5.2 | MIT License | https://github.com/dvygolov/yellow-vsl */
+/*! YellowVSL v1.6.0 | MIT License | https://github.com/dvygolov/yellow-vsl */
 
 // src/utils.js
 var DEFAULT_PROGRESS_POINTS = Object.freeze([
@@ -140,6 +140,7 @@ var DEFAULT_LOCALE = Object.freeze({
   continue: "\u041F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C",
   restart: "\u041D\u0430\u0447\u0430\u0442\u044C \u0441\u043D\u0430\u0447\u0430\u043B\u0430",
   autoplayBlocked: "\u041D\u0430\u0436\u043C\u0438\u0442\u0435, \u0447\u0442\u043E\u0431\u044B \u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C \u0432\u0438\u0434\u0435\u043E",
+  loading: "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u0438\u0434\u0435\u043E",
   close: "\u0417\u0430\u043A\u0440\u044B\u0442\u044C",
   speed: "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C",
   genericError: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0432\u0438\u0434\u0435\u043E",
@@ -179,6 +180,7 @@ var DEFAULT_OPTIONS = Object.freeze({
   popup: false,
   ctas: Object.freeze([]),
   hooks: Object.freeze([]),
+  reveals: Object.freeze([]),
   theme: Object.freeze({}),
   locale: DEFAULT_LOCALE
 });
@@ -225,6 +227,10 @@ function normalizeOptions(options = {}) {
     aspectRatioValue: parseAspectRatio(options.aspectRatio || DEFAULT_OPTIONS.aspectRatio),
     ctas: Array.isArray(options.ctas) ? options.ctas.map((item, index) => normalizeTimedItem(item, index, "cta")) : [],
     hooks: Array.isArray(options.hooks) ? options.hooks.map((item, index) => normalizeTimedItem(item, index, "hook")) : [],
+    reveals: Array.isArray(options.reveals) ? options.reveals.map((item, index) => ({
+      ...normalizeTimedItem(item, index, "reveal"),
+      selector: String(item?.selector || item?.reveal || "")
+    })) : [],
     theme: { ...options.theme || {} },
     locale: { ...DEFAULT_LOCALE, ...options.locale || {} }
   };
@@ -364,13 +370,17 @@ var STYLES = `
 .yvsl-zone:empty { display: none; }
 .yvsl-zone--above { padding: 12px 14px 0; }
 .yvsl-zone--below { padding: 0 14px 12px; }
-.yvsl-hook {
+.yvsl-root .yvsl-hook {
   margin: 0;
   padding: 10px 12px;
-  color: var(--yvsl-text);
-  background: color-mix(in srgb, var(--yvsl-accent) 16%, transparent);
-  border-left: 3px solid var(--yvsl-accent);
+  color: #fff;
+  background: rgba(8, 10, 12, .92);
+  border: 1px solid rgba(255,255,255,.2);
+  border-left: 4px solid var(--yvsl-accent);
   border-radius: 8px;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0,0,0,.72);
+  backdrop-filter: blur(8px);
   text-align: center;
 }
 .yvsl-cta {
@@ -414,6 +424,19 @@ var STYLES = `
   cursor: pointer;
 }
 .yvsl-btn:hover { background: rgba(255, 255, 255, .08); }
+.yvsl-play.yvsl-is-loading, .yvsl-poster__play.yvsl-is-loading { color: transparent; font-size: 0; padding-left: 0; }
+.yvsl-play.yvsl-is-loading::after, .yvsl-poster__play.yvsl-is-loading::after {
+  content: "";
+  width: 18px;
+  aspect-ratio: 1;
+  border: 3px solid rgba(255,255,255,.36);
+  border-top-color: var(--yvsl-accent);
+  border-radius: 50%;
+  animation: yvsl-spin .72s linear infinite;
+}
+.yvsl-poster__play.yvsl-is-loading::after { width: clamp(24px, 4vw, 34px); border-width: 4px; border-color: rgba(23,20,0,.28); border-top-color: #171400; }
+@keyframes yvsl-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .yvsl-is-loading::after { animation-duration: 1.6s; } }
 .yvsl-btn:focus-visible, .yvsl-progress:focus-visible, .yvsl-cta:focus-visible, .yvsl-speed:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--yvsl-accent) 70%, white);
   outline-offset: 2px;
@@ -763,7 +786,9 @@ var YellowVSLPlayer = class {
     this.fullscreenControlsTimer = null;
     this.adapterMountPromise = null;
     this.pendingPlay = false;
+    this.loading = false;
     this.completed = false;
+    this.hasStarted = false;
     this.lastActiveAt = 0;
     this.readyState = false;
     this.timedNodes = [];
@@ -1025,6 +1050,7 @@ var YellowVSLPlayer = class {
   _onStateChange(state) {
     if (this.destroyed) return;
     this.playerState = state;
+    this.loading = state === YT_STATE.BUFFERING;
     if (state === YT_STATE.BUFFERING) {
       this.stageWasRevealedBeforeBuffering = this.stageRevealed;
       this._stopTicker();
@@ -1035,6 +1061,7 @@ var YellowVSLPlayer = class {
       return;
     }
     if (state === YT_STATE.PLAYING) {
+      this.hasStarted = true;
       if (this.stageWarmupBypassNextPlay) {
         this.stageWarmupBypassNextPlay = false;
         this.stageRevealed = true;
@@ -1094,6 +1121,7 @@ var YellowVSLPlayer = class {
     this._showError(message, code);
   }
   _showError(message, code) {
+    this.loading = false;
     this.dom.error.textContent = message;
     this.dom.error.hidden = false;
     this.dom.controls.hidden = true;
@@ -1162,7 +1190,9 @@ var YellowVSLPlayer = class {
     const playing = this.playerState === YT_STATE.PLAYING;
     const displayingVideo = playing || this.playerState === YT_STATE.BUFFERING && this.stageWasRevealedBeforeBuffering;
     this.dom.play.textContent = playing ? "\u2161" : "\u25B6";
-    this.dom.play.title = playing ? this.options.locale.pause : this.options.locale.play;
+    this.dom.play.classList.toggle("yvsl-is-loading", this.loading);
+    this.dom.posterPlay.classList.toggle("yvsl-is-loading", this.loading);
+    this.dom.play.title = this.loading ? this.options.locale.loading : playing ? this.options.locale.pause : this.options.locale.play;
     this.dom.play.setAttribute("aria-label", this.dom.play.title);
     this.dom.stageInteraction.setAttribute("aria-label", this.dom.play.title);
     this.dom.poster.hidden = this.options.stage.poster === false || displayingVideo && this.stageRevealed;
@@ -1209,7 +1239,8 @@ var YellowVSLPlayer = class {
     this.stageRevealed = false;
     this.stageWarmupWasMuted = this._isMuted();
     if (!this.stageWarmupWasMuted) this.adapter?.mute?.();
-    this.dom.posterPlay.textContent = "\u2026";
+    this.loading = true;
+    this._updateUi();
     this.stageWarmupTimer = window.setTimeout(() => {
       this.stageWarmupTimer = null;
       if (this.destroyed || this.playerState !== YT_STATE.PLAYING) return;
@@ -1220,7 +1251,7 @@ var YellowVSLPlayer = class {
       this._syncMutedIntent();
       this.stageWarmupWasMuted = null;
       this.stageRevealed = true;
-      this.dom.posterPlay.textContent = "\u25B6";
+      this.loading = false;
       this._updateUi();
     }, delay);
   }
@@ -1229,9 +1260,14 @@ var YellowVSLPlayer = class {
     this.stageWarmupTimer = null;
     if (this.stageWarmupWasMuted != null) this._syncMutedIntent();
     this.stageWarmupWasMuted = null;
-    if (this.dom?.posterPlay) this.dom.posterPlay.textContent = "\u25B6";
+    this.loading = false;
+    if (this.dom) this._updateUi();
   }
   _renderTimedItems() {
+    for (const item of this.options.reveals) {
+      this.timedNodes.push({ type: "reveal", item, node: null, shown: false });
+      this._prepareReveal(item);
+    }
     for (const item of this.options.hooks) {
       const node = element("p", "yvsl-hook", { text: String(item.text || ""), hidden: true });
       this._zone(item.placement).append(node);
@@ -1247,7 +1283,7 @@ var YellowVSLPlayer = class {
       this.timedNodes.push({ type: "cta", item, node, shown: false });
       this._prepareReveal(item);
       this._listen(node, "click", () => {
-        this._reveal(item);
+        this._reveal(item, true, item.scroll !== false);
         this._emit("cta-click", { cta: item.id, url: safeUrl });
       });
     }
@@ -1269,10 +1305,11 @@ var YellowVSLPlayer = class {
     }[placement] || this.dom.below;
   }
   _prepareReveal(item) {
-    if (!item.reveal) return;
+    const selector = this._revealSelector(item);
+    if (!selector) return;
     let nodes = [];
     try {
-      nodes = document.querySelectorAll(item.reveal);
+      nodes = document.querySelectorAll(selector);
     } catch {
       return;
     }
@@ -1285,16 +1322,34 @@ var YellowVSLPlayer = class {
     }
     if (this.unlocks.has(item.id)) this._reveal(item, false);
   }
-  _reveal(item, persist = true) {
-    if (item.reveal) {
+  _revealSelector(item) {
+    return item.selector || item.reveal || "";
+  }
+  _hideReveal(item) {
+    const selector = this._revealSelector(item);
+    if (!selector) return;
+    try {
+      for (const node of document.querySelectorAll(selector)) {
+        node.hidden = true;
+        node.setAttribute("aria-hidden", "true");
+      }
+    } catch {
+    }
+  }
+  _reveal(item, persist = true, scroll = false) {
+    const selector = this._revealSelector(item);
+    let firstNode = null;
+    if (selector) {
       try {
-        for (const node of document.querySelectorAll(item.reveal)) {
+        for (const node of document.querySelectorAll(selector)) {
+          if (!firstNode) firstNode = node;
           node.hidden = false;
           node.removeAttribute("aria-hidden");
         }
       } catch {
       }
     }
+    if (scroll && firstNode) firstNode.scrollIntoView({ behavior: "smooth", block: "start" });
     if (item.persist !== false && persist && !this.unlocks.has(item.id)) {
       this.unlocks.add(item.id);
       this._saveProgress();
@@ -1304,27 +1359,20 @@ var YellowVSLPlayer = class {
     const current = this.timeline?.current || 0;
     for (const entry of this.timedNodes) {
       const { item, node, type } = entry;
-      const unlocked = type === "cta" && item.persist !== false && this.unlocks.has(item.id);
+      const unlocked = type !== "hook" && item.persist !== false && this.unlocks.has(item.id);
       const active = unlocked || current >= item.start && current <= item.end;
-      node.hidden = !active;
+      if (node) node.hidden = !active;
       if (active && !entry.shown) {
         entry.shown = true;
-        if (type === "cta") {
-          this._reveal(item);
+        if (type === "reveal") {
+          this._reveal(item, true, item.scroll === true);
+        } else if (type === "cta") {
           this._emit("cta-show", { cta: item.id });
           if (item.autoScroll) node.scrollIntoView({ behavior: "smooth", block: "center" });
         }
       } else if (!active) {
         entry.shown = false;
-        if (type === "cta" && item.persist === false && item.reveal) {
-          try {
-            for (const revealNode of document.querySelectorAll(item.reveal)) {
-              revealNode.hidden = true;
-              revealNode.setAttribute("aria-hidden", "true");
-            }
-          } catch {
-          }
-        }
+        if (type !== "hook" && item.persist === false) this._hideReveal(item);
       }
     }
   }
@@ -1378,7 +1426,7 @@ var YellowVSLPlayer = class {
   }
   _applySticky() {
     const active = Boolean(
-      this.options.sticky && this.stickyOutOfView && !this.stickyDismissed && !this.popupOpen && document.fullscreenElement !== this.dom.root && this.playerState === YT_STATE.PLAYING
+      this.options.sticky && this.stickyOutOfView && !this.stickyDismissed && !this.popupOpen && document.fullscreenElement !== this.dom.root && this.hasStarted && [YT_STATE.PLAYING, YT_STATE.PAUSED, YT_STATE.BUFFERING].includes(this.playerState)
     );
     this.dom.root.classList.toggle("yvsl-root--sticky", active);
   }
@@ -1460,6 +1508,9 @@ var YellowVSLPlayer = class {
     this.dom.root.dispatchEvent(new CustomEvent(`yellowvsl:${name}`, { detail, bubbles: true }));
   }
   play() {
+    this._hideMessage();
+    this.loading = this.playerState !== YT_STATE.PLAYING;
+    this._updateUi();
     if (this.options.popup && !this.popupOpen) this.open();
     if (!this.readyState) {
       this.pendingPlay = true;
@@ -1482,6 +1533,8 @@ var YellowVSLPlayer = class {
   }
   pause() {
     this.pendingPlay = false;
+    this.loading = false;
+    this._updateUi();
     this.adapter?.pause();
     return this;
   }
@@ -1602,7 +1655,7 @@ function safeLocalStorage() {
 }
 
 // src/index.js
-var version = "1.5.2";
+var version = "1.6.0";
 var autoInstances = /* @__PURE__ */ new WeakMap();
 function create(target, options = {}) {
   return new YellowVSLPlayer(target, options);

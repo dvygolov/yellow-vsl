@@ -59,7 +59,9 @@ export class YellowVSLPlayer {
     this.fullscreenControlsTimer = null;
     this.adapterMountPromise = null;
     this.pendingPlay = false;
+    this.loading = false;
     this.completed = false;
+    this.hasStarted = false;
     this.lastActiveAt = 0;
     this.readyState = false;
     this.timedNodes = [];
@@ -350,6 +352,7 @@ export class YellowVSLPlayer {
   _onStateChange(state) {
     if (this.destroyed) return;
     this.playerState = state;
+    this.loading = state === YT_STATE.BUFFERING;
     if (state === YT_STATE.BUFFERING) {
       this.stageWasRevealedBeforeBuffering = this.stageRevealed;
       this._stopTicker();
@@ -360,6 +363,7 @@ export class YellowVSLPlayer {
       return;
     }
     if (state === YT_STATE.PLAYING) {
+      this.hasStarted = true;
       if (this.stageWarmupBypassNextPlay) {
         this.stageWarmupBypassNextPlay = false;
         this.stageRevealed = true;
@@ -423,6 +427,7 @@ export class YellowVSLPlayer {
   }
 
   _showError(message, code) {
+    this.loading = false;
     this.dom.error.textContent = message;
     this.dom.error.hidden = false;
     this.dom.controls.hidden = true;
@@ -501,7 +506,9 @@ export class YellowVSLPlayer {
     const playing = this.playerState === YT_STATE.PLAYING;
     const displayingVideo = playing || (this.playerState === YT_STATE.BUFFERING && this.stageWasRevealedBeforeBuffering);
     this.dom.play.textContent = playing ? "Ⅱ" : "▶";
-    this.dom.play.title = playing ? this.options.locale.pause : this.options.locale.play;
+    this.dom.play.classList.toggle("yvsl-is-loading", this.loading);
+    this.dom.posterPlay.classList.toggle("yvsl-is-loading", this.loading);
+    this.dom.play.title = this.loading ? this.options.locale.loading : (playing ? this.options.locale.pause : this.options.locale.play);
     this.dom.play.setAttribute("aria-label", this.dom.play.title);
     this.dom.stageInteraction.setAttribute("aria-label", this.dom.play.title);
     this.dom.poster.hidden = this.options.stage.poster === false || (displayingVideo && this.stageRevealed);
@@ -559,7 +566,8 @@ export class YellowVSLPlayer {
     this.stageRevealed = false;
     this.stageWarmupWasMuted = this._isMuted();
     if (!this.stageWarmupWasMuted) this.adapter?.mute?.();
-    this.dom.posterPlay.textContent = "…";
+    this.loading = true;
+    this._updateUi();
     this.stageWarmupTimer = window.setTimeout(() => {
       this.stageWarmupTimer = null;
       if (this.destroyed || this.playerState !== YT_STATE.PLAYING) return;
@@ -570,7 +578,7 @@ export class YellowVSLPlayer {
       this._syncMutedIntent();
       this.stageWarmupWasMuted = null;
       this.stageRevealed = true;
-      this.dom.posterPlay.textContent = "▶";
+      this.loading = false;
       this._updateUi();
     }, delay);
   }
@@ -580,10 +588,16 @@ export class YellowVSLPlayer {
     this.stageWarmupTimer = null;
     if (this.stageWarmupWasMuted != null) this._syncMutedIntent();
     this.stageWarmupWasMuted = null;
-    if (this.dom?.posterPlay) this.dom.posterPlay.textContent = "▶";
+    this.loading = false;
+    if (this.dom) this._updateUi();
   }
 
   _renderTimedItems() {
+    for (const item of this.options.reveals) {
+      this.timedNodes.push({ type: "reveal", item, node: null, shown: false });
+      this._prepareReveal(item);
+    }
+
     for (const item of this.options.hooks) {
       const node = element("p", "yvsl-hook", { text: String(item.text || ""), hidden: true });
       this._zone(item.placement).append(node);
@@ -602,7 +616,7 @@ export class YellowVSLPlayer {
       this.timedNodes.push({ type: "cta", item, node, shown: false });
       this._prepareReveal(item);
       this._listen(node, "click", () => {
-        this._reveal(item);
+        this._reveal(item, true, item.scroll !== false);
         this._emit("cta-click", { cta: item.id, url: safeUrl });
       });
     }
@@ -628,9 +642,10 @@ export class YellowVSLPlayer {
   }
 
   _prepareReveal(item) {
-    if (!item.reveal) return;
+    const selector = this._revealSelector(item);
+    if (!selector) return;
     let nodes = [];
-    try { nodes = document.querySelectorAll(item.reveal); } catch { return; }
+    try { nodes = document.querySelectorAll(selector); } catch { return; }
     for (const node of nodes) {
       if (!this.managedRevealElements.has(node)) this.managedRevealElements.set(node, node.hidden);
       if (!this.unlocks.has(item.id)) {
@@ -641,10 +656,30 @@ export class YellowVSLPlayer {
     if (this.unlocks.has(item.id)) this._reveal(item, false);
   }
 
-  _reveal(item, persist = true) {
-    if (item.reveal) {
+  _revealSelector(item) {
+    return item.selector || item.reveal || "";
+  }
+
+  _hideReveal(item) {
+    const selector = this._revealSelector(item);
+    if (!selector) return;
+    try {
+      for (const node of document.querySelectorAll(selector)) {
+        node.hidden = true;
+        node.setAttribute("aria-hidden", "true");
+      }
+    } catch {
+      // Invalid selectors are ignored and do not stop playback.
+    }
+  }
+
+  _reveal(item, persist = true, scroll = false) {
+    const selector = this._revealSelector(item);
+    let firstNode = null;
+    if (selector) {
       try {
-        for (const node of document.querySelectorAll(item.reveal)) {
+        for (const node of document.querySelectorAll(selector)) {
+          if (!firstNode) firstNode = node;
           node.hidden = false;
           node.removeAttribute("aria-hidden");
         }
@@ -652,6 +687,7 @@ export class YellowVSLPlayer {
         // Invalid selectors are ignored and do not stop playback.
       }
     }
+    if (scroll && firstNode) firstNode.scrollIntoView({ behavior: "smooth", block: "start" });
     if (item.persist !== false && persist && !this.unlocks.has(item.id)) {
       this.unlocks.add(item.id);
       this._saveProgress();
@@ -662,29 +698,21 @@ export class YellowVSLPlayer {
     const current = this.timeline?.current || 0;
     for (const entry of this.timedNodes) {
       const { item, node, type } = entry;
-      const unlocked = type === "cta" && item.persist !== false && this.unlocks.has(item.id);
+      const unlocked = type !== "hook" && item.persist !== false && this.unlocks.has(item.id);
       const active = unlocked || (current >= item.start && current <= item.end);
-      node.hidden = !active;
+      if (node) node.hidden = !active;
 
       if (active && !entry.shown) {
         entry.shown = true;
-        if (type === "cta") {
-          this._reveal(item);
+        if (type === "reveal") {
+          this._reveal(item, true, item.scroll === true);
+        } else if (type === "cta") {
           this._emit("cta-show", { cta: item.id });
           if (item.autoScroll) node.scrollIntoView({ behavior: "smooth", block: "center" });
         }
       } else if (!active) {
         entry.shown = false;
-        if (type === "cta" && item.persist === false && item.reveal) {
-          try {
-            for (const revealNode of document.querySelectorAll(item.reveal)) {
-              revealNode.hidden = true;
-              revealNode.setAttribute("aria-hidden", "true");
-            }
-          } catch {
-            // Ignore invalid selectors.
-          }
-        }
+        if (type !== "hook" && item.persist === false) this._hideReveal(item);
       }
     }
   }
@@ -744,7 +772,8 @@ export class YellowVSLPlayer {
       !this.stickyDismissed &&
       !this.popupOpen &&
       document.fullscreenElement !== this.dom.root &&
-      this.playerState === YT_STATE.PLAYING
+      this.hasStarted &&
+      [YT_STATE.PLAYING, YT_STATE.PAUSED, YT_STATE.BUFFERING].includes(this.playerState)
     );
     this.dom.root.classList.toggle("yvsl-root--sticky", active);
   }
@@ -839,6 +868,9 @@ export class YellowVSLPlayer {
   }
 
   play() {
+    this._hideMessage();
+    this.loading = this.playerState !== YT_STATE.PLAYING;
+    this._updateUi();
     if (this.options.popup && !this.popupOpen) this.open();
     if (!this.readyState) {
       this.pendingPlay = true;
@@ -860,6 +892,8 @@ export class YellowVSLPlayer {
 
   pause() {
     this.pendingPlay = false;
+    this.loading = false;
+    this._updateUi();
     this.adapter?.pause();
     return this;
   }

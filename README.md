@@ -30,7 +30,7 @@ If you like this script, PLEASE DONATE!
   data-video="https://youtu.be/M7lc1UVf-VE">
 </div>
 
-<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.5.2/dist/yellow-vsl.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.6.0/dist/yellow-vsl.min.js"></script>
 ```
 
 По умолчанию включены:
@@ -68,10 +68,10 @@ npm run demo
 <div id="sales-video"></div>
 
 <section id="offer" hidden>
-  Этот блок откроется после просмотра питча.
+  Этот блок откроется после клика по CTA.
 </section>
 
-<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.5.2/dist/yellow-vsl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.6.0/dist/yellow-vsl.min.js"></script>
 <script>
   const player = YellowVSL.create("#sales-video", {
     video: "https://www.youtube.com/watch?v=M7lc1UVf-VE",
@@ -97,16 +97,15 @@ npm run demo
       speed: false
     },
     hooks: [
-      { id: "wait", start: 10, end: 20, text: "Досмотрите — дальше самое важное", placement: "above" }
+      { id: "wait", start: 10, end: 20, text: "Досмотрите: дальше самое важное", placement: "above" }
     ],
     ctas: [
       {
         id: "offer",
         start: 30,
-        text: "Перейти к предложению",
-        url: "https://example.com/checkout",
-        target: "_blank",
+        text: "Открыть предложение",
         reveal: "#offer",
+        scroll: true,
         placement: "bottom-right",
         persist: true
       }
@@ -116,7 +115,7 @@ npm run demo
 </script>
 ```
 
-Все значения `start`, `end`, время CTA и hooks считаются относительно начала показываемого фрагмента. Изменение скорости воспроизведения не меняет секунду, на которой появляются эти элементы.
+Все значения `start`, `end`, время CTA, hooks и reveals считаются относительно начала показываемого фрагмента. Изменение скорости воспроизведения не меняет секунду, на которой появляются эти элементы.
 
 CTA и hooks можно размещать снаружи кадра (`above`, `below`) или поверх видео: `top-left`, `top-right`, `bottom-left`, `bottom-right`.
 
@@ -145,6 +144,7 @@ ctas: [{
 | `aspectRatio` | `"16/9"`, `"9/16"` или другое отношение | `"16/9"` | Формат контейнера; для 9:16 используйте вертикальное исходное видео |
 | `ctas` | array | `[]` | Кнопки по таймеру |
 | `hooks` | array | `[]` | Текстовые mini-hooks по таймеру |
+| `reveals` | array | `[]` | Автоматическое раскрытие блоков страницы по таймеру |
 | `sticky` | boolean или object | `false` | Закреплённый mini-player |
 | `popup` | boolean или object | `false` | Плеер в модальном окне |
 | `theme` | object | стандартная тёмная тема | Цвета и геометрия |
@@ -230,12 +230,11 @@ ctas: [{
   start: 45,
   end: 90,
   text: "Получить предложение",
-  url: "https://example.com/checkout",
-  target: "_blank",
+  reveal: "#offer",
+  scroll: true,
   placement: "bottom-right",
   background: "#ff3b30",
   color: "#ffffff",
-  reveal: "#offer",
   persist: true,
   autoScroll: false
 }]
@@ -246,18 +245,43 @@ ctas: [{
 | `id` | Стабильный ID CTA для событий и сохранения |
 | `start`, `end` | Время появления и скрытия относительно начала фрагмента; без `end` CTA остаётся до конца |
 | `text` | Текст кнопки |
-| `url` | Ссылка; без неё создаётся обычная кнопка для раскрытия блока |
+| `url` | Ссылка, которую откроет кнопка; для CTA с раскрытием блока параметр не нужен |
 | `target` | `_self` или `_blank` |
 | `placement` | `above`, `below`, `top-left`, `top-right`, `bottom-left`, `bottom-right` |
 | `background` | Цвет фона CTA: hex, rgb, hsl, CSS variable или имя цвета |
 | `color` | Цвет текста CTA |
-| `reveal` | CSS-селектор элемента страницы, который нужно раскрыть |
+| `reveal` | CSS-селектор элемента страницы, который откроется после клика по CTA |
 | `persist` | Сохраняет открытый оффер в `localStorage`; `false` показывает его только в заданном интервале |
+| `scroll` | После клика плавно прокручивает страницу к раскрытому блоку; по умолчанию `true` |
 | `autoScroll` | После появления CTA прокручивает страницу к нему |
+
+Для обычной кнопки-ссылки задайте `url` и при необходимости `target`. Для кнопки, которая открывает скрытый блок страницы, задайте `reveal`. Появление CTA само по себе блок не раскрывает.
+
+### Автоматическое раскрытие блока
+
+`reveals` открывает блок по времени без CTA и без клика:
+
+```js
+reveals: [{
+  id: "auto-order-form",
+  start: 90,
+  selector: "#order-form",
+  persist: true,
+  scroll: false
+}]
+```
+
+| Параметр | Что делает |
+| --- | --- |
+| `id` | Стабильный ID для сохранения открытого состояния |
+| `start`, `end` | Время раскрытия и, при `persist: false`, скрытия блока |
+| `selector` | CSS-селектор раскрываемого блока |
+| `persist` | Сохраняет открытое состояние в `localStorage`; по умолчанию `true` |
+| `scroll` | Прокручивает страницу к блоку при автоматическом раскрытии; по умолчанию `false` |
 
 ### Mini-hooks
 
-Hooks используют `id`, `start`, `end`, `text` и те же шесть вариантов `placement`:
+Mini-hook - необязательная текстовая подсказка по таймеру. Она ничего не открывает и никуда не ведёт. Её можно использовать для короткого анонса оффера, напоминания или пояснения. Hooks используют `id`, `start`, `end`, `text` и те же шесть вариантов `placement`:
 
 ```js
 hooks: [{
@@ -283,7 +307,7 @@ popup: {
 }
 ```
 
-`sticky: true` включает правый нижний угол со стандартной шириной. `popup.trigger` принимает CSS-селектор одной или нескольких внешних кнопок. `popup.preload: true` загружает YouTube заранее, чтобы окно открывалось сразу. Без `preload` iframe создаётся только при первом открытии.
+`sticky: true` включает правый нижний угол со стандартной шириной. После паузы sticky-плеер остаётся в углу, поэтому просмотр можно продолжить там же. Крестик закрывает его и ставит видео на паузу. `popup.trigger` принимает CSS-селектор одной или нескольких внешних кнопок. `popup.preload: true` загружает YouTube заранее, чтобы окно открывалось сразу. Без `preload` iframe создаётся только при первом открытии.
 
 ### `theme`
 
@@ -380,7 +404,7 @@ theme: {
 }
 ```
 
-Переопределяемые строки `locale`: `play`, `pause`, `mute`, `unmute`, `unmutePrompt`, `fullscreen`, `exitFullscreen`, `progress`, `continueTitle`, `continue`, `restart`, `autoplayBlocked`, `close`, `speed`, `genericError`, `identityError`, `embedError`, `unavailableError`.
+Переопределяемые строки `locale`: `play`, `pause`, `mute`, `unmute`, `unmutePrompt`, `fullscreen`, `exitFullscreen`, `progress`, `continueTitle`, `continue`, `restart`, `autoplayBlocked`, `loading`, `close`, `speed`, `genericError`, `identityError`, `embedError`, `unavailableError`.
 
 ## Разработка
 

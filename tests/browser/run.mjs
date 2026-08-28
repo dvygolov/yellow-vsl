@@ -15,7 +15,7 @@ try {
     const pageErrors = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
     await page.addInitScript({ path: fakeYouTube });
-    await page.goto(`${server.origin}/tests/browser/fixture.html`);
+    await page.goto(`${server.origin}/tests/browser/fixture.html`, { waitUntil: "domcontentloaded" });
 
     await page.evaluate(async () => {
       window.mainPlayer = window.YellowVSL.autoInit()[0];
@@ -170,6 +170,35 @@ try {
     await page.evaluate(() => window.mainPlayer.play());
     await page.waitForFunction(() => window.mainPlayer.getState().playerState === 1);
 
+    const loadingIndicator = await page.evaluate(async () => {
+      const mount = document.createElement("div");
+      mount.id = "loading-indicator";
+      document.body.append(mount);
+      const player = window.YellowVSL.create(mount, {
+        video: "M7lc1UVf-VE",
+        playback: { autoplay: false, resume: false }
+      });
+      await player.ready;
+      player.adapter.play = () => {};
+      player.play();
+      const requested = {
+        active: player.dom.play.classList.contains("yvsl-is-loading"),
+        label: player.dom.play.getAttribute("aria-label")
+      };
+      player._onStateChange(3);
+      const buffering = player.dom.play.classList.contains("yvsl-is-loading");
+      player._onStateChange(1);
+      const playing = player.dom.play.classList.contains("yvsl-is-loading");
+      player.destroy();
+      return { requested, buffering, playing };
+    });
+    assert.equal(loadingIndicator.requested.active, true, `${name}: play request shows loader`);
+    assert.match(loadingIndicator.requested.label, /загруз/i, `${name}: loader has an accessible label`);
+    assert.equal(loadingIndicator.buffering, true, `${name}: buffering keeps loader visible`);
+    assert.equal(loadingIndicator.playing, false, `${name}: playing hides loader`);
+    await page.evaluate(() => window.mainPlayer.play());
+    await page.waitForFunction(() => window.mainPlayer.getState().playerState === 1);
+
     const fullscreenButton = page.locator("#main .yvsl-fullscreen");
     if (await fullscreenButton.isVisible()) {
       await fullscreenButton.click();
@@ -201,26 +230,38 @@ try {
 
     const advanced = await page.evaluate(async () => {
       window.eventNames = [];
+      window.autoRevealScrolled = false;
+      document.querySelector("#auto-offer").scrollIntoView = () => { window.autoRevealScrolled = true; };
       document.addEventListener("yellowvsl:play", () => window.eventNames.push("play"));
       window.advancedPlayer = window.YellowVSL.create("#advanced", {
         video: "M7lc1UVf-VE",
         playback: { autoplay: false },
         stage: { revealDelay: 0 },
         hooks: [{ start: 0.2, end: 2, text: "Hook", placement: "above" }],
-        ctas: [{ id: "offer", start: 0.5, text: "CTA", reveal: "#offer", placement: "bottom-right", background: "#123456", color: "#ffffff", persist: true }]
+        ctas: [{ id: "offer", start: 0.5, text: "CTA", reveal: "#offer", placement: "bottom-right", background: "#123456", color: "#ffffff", persist: true }],
+        reveals: [{ id: "automatic-offer", start: 0.75, selector: "#auto-offer", persist: true }]
       });
       await window.advancedPlayer.ready;
       window.advancedPlayer.play();
       return window.advancedPlayer.getState();
     });
     assert.equal(advanced.ready, true, `${name}: advanced ready`);
-    await page.waitForFunction(() => window.advancedPlayer.getState().currentTime > 0.7);
+    await page.waitForFunction(() => window.advancedPlayer.getState().currentTime > 0.9);
     assert.equal(await page.locator("#advanced .yvsl-hook").isVisible(), true, `${name}: hook timing`);
     assert.equal(await page.locator("#advanced .yvsl-cta").isVisible(), true, `${name}: CTA timing`);
     assert.equal(await page.locator("#advanced .yvsl-cta").evaluate((node) => node.parentElement.classList.contains("yvsl-zone--bottom-right")), true, `${name}: CTA corner placement`);
     assert.equal(await page.locator("#advanced .yvsl-cta").evaluate((node) => getComputedStyle(node).backgroundColor), "rgb(18, 52, 86)", `${name}: CTA background color`);
     assert.equal(await page.locator("#advanced .yvsl-cta").evaluate((node) => getComputedStyle(node).color), "rgb(255, 255, 255)", `${name}: CTA text color`);
-    assert.equal(await page.locator("#offer").isVisible(), true, `${name}: reveal target`);
+    assert.equal(await page.locator("#offer").isVisible(), false, `${name}: showing a CTA does not reveal its target`);
+    assert.equal(await page.locator("#auto-offer").isVisible(), true, `${name}: timed reveal opens its target automatically`);
+    assert.equal(await page.evaluate(() => window.autoRevealScrolled), false, `${name}: automatic reveal does not scroll by default`);
+    await page.evaluate(() => {
+      window.revealScroll = null;
+      document.querySelector("#offer").scrollIntoView = (options) => { window.revealScroll = options; };
+    });
+    await page.locator("#advanced .yvsl-cta").click();
+    assert.equal(await page.locator("#offer").isVisible(), true, `${name}: CTA reveals its target only after click`);
+    assert.deepEqual(await page.evaluate(() => window.revealScroll), { behavior: "smooth", block: "start" }, `${name}: CTA scrolls to its revealed block`);
     assert.ok((await page.evaluate(() => window.eventNames)).includes("play"), `${name}: bubbling events`);
 
     await page.evaluate(async () => {
@@ -259,6 +300,12 @@ try {
     await page.evaluate(() => window.scrollTo(0, 1500));
     await page.waitForFunction(() => window.mainPlayer.getState().sticky === true);
     assert.equal(await page.locator("#main .yvsl-root--sticky").isVisible(), true, `${name}: sticky mode`);
+    await page.locator("#main .yvsl-play").click();
+    await page.waitForFunction(() => window.mainPlayer.getState().playerState === 2);
+    assert.equal(await page.locator("#main .yvsl-root--sticky").isVisible(), true, `${name}: sticky stays visible while paused`);
+    await page.locator("#main .yvsl-play").click();
+    await page.waitForFunction(() => window.mainPlayer.getState().playerState === 1);
+    assert.equal(await page.locator("#main .yvsl-root--sticky").isVisible(), true, `${name}: sticky resumes in place`);
     await page.locator("#main .yvsl-sticky-close").click();
     assert.notEqual(await page.evaluate(() => window.mainPlayer.getState().playerState), 1, `${name}: sticky close pauses`);
 
@@ -278,6 +325,9 @@ try {
     });
     assert.equal(await page.locator("#main .yvsl-message").isVisible(), true, `${name}: resume prompt visible`);
     assert.match(await page.locator("#main .yvsl-message").textContent(), /уже начали смотреть/i, `${name}: resume copy`);
+    await page.evaluate(() => window.mainPlayer.play());
+    await page.waitForFunction(() => window.mainPlayer.getState().playerState === 1);
+    assert.equal(await page.locator("#main .yvsl-message").isHidden(), true, `${name}: starting playback dismisses the resume prompt`);
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.evaluate(() => window.scrollTo(0, 0));
@@ -294,7 +344,7 @@ try {
     const demoErrors = [];
     demoPage.on("pageerror", (error) => demoErrors.push(error.message));
     await demoPage.addInitScript({ path: fakeYouTube });
-    await demoPage.goto(`${server.origin}/demo/?autoplay=false`);
+    await demoPage.goto(`${server.origin}/demo/?autoplay=false`, { waitUntil: "domcontentloaded" });
     await demoPage.waitForFunction(() => document.documentElement.dataset.demoReady === "true");
     assert.equal(await demoPage.locator(".server-badge").isVisible(), true, `${name}: HTTP demo loaded`);
 
@@ -310,7 +360,7 @@ try {
     await demoPage.evaluate(() => window.demo.popupPlayer._onPlayerError(153));
     assert.match(await demoPage.locator("#popup-player .yvsl-error").textContent(), /HTTP Referer/i, `${name}: Error 153 guidance`);
 
-    await demoPage.goto(`${server.origin}/demo/?show-file-warning=1`);
+    await demoPage.goto(`${server.origin}/demo/?show-file-warning=1`, { waitUntil: "domcontentloaded" });
     assert.equal(await demoPage.locator("#file-warning").isVisible(), true, `${name}: file protocol guidance visible`);
     assert.equal(await demoPage.locator("#demo-app").isHidden(), true, `${name}: players skipped in file warning mode`);
     assert.match(await demoPage.locator("#file-warning").textContent(), /start-demo\.cmd/i, `${name}: launcher instruction`);

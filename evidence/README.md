@@ -1,4 +1,4 @@
-# YellowVSL v1.5.2 — визуальная приёмка
+# YellowVSL v1.6.0 — визуальная приёмка
 
 Стенд запускался по HTTP с настоящим публичным YouTube-видео. Перед сохранением каждого кадра Playwright проверял состояние DOM и API плеера; затем каждый PNG был открыт и просмотрен визуально. В таблицу включены только принятые кадры.
 
@@ -7,7 +7,7 @@
 | 1 | Smart Autoplay | `playerState=1`, `muted=true`, показано предложение включить звук | Видео действительно играет; видны внешний контрол звука, Smart Progress и понятная подсказка | [01-smart-autoplay.png](screenshots/01-smart-autoplay.png) |
 | 2 | Включение звука с возвратом к началу | `muted=false`, время около начала ролика, сообщение скрыто | Кадр начала воспроизводится со звуком; состояние и индикатор звука согласованы | [02-unmute-restart.png](screenshots/02-unmute-restart.png) |
 | 3 | Mini-hook | `currentTime≈2.6`, hook виден, CTA и оффер скрыты | Hook расположен над кадром и не перекрывает YouTube iframe | [03-mini-hook.png](screenshots/03-mini-hook.png) |
-| 4 | Smart Progress, CTA и раскрытие страницы | `currentTime≈6.1`, Smart Progress `30%`, CTA и `#offer` видимы | CTA находится вне iframe; раскрытый оффер читаем и соответствует таймингу | [04-smart-progress-cta.png](screenshots/04-smart-progress-cta.png) |
+| 4 | Smart Progress, CTA и раскрытие страницы | `currentTime≈6.1`, Smart Progress `30%`, CTA видна, `#offer` скрыт до клика | После клика оффер открывается, а страница прокручивается к нему | [04-smart-progress-cta.png](screenshots/04-smart-progress-cta.png) |
 | 5 | Блокировка перехода вперёд | Запрошено `maxWatched+60`, фактическая позиция осталась у `maxWatched` | Зелёный результат показывает запрошенную и фактическую позиции | [05-forward-seek-blocked.png](screenshots/05-forward-seek-blocked.png) |
 | 6 | Возврат назад | Запрошено `maxWatched-2`, фактическая позиция совпала с запросом | Результат и шкала показывают разрешённый возврат в просмотренную область | [06-backward-seek-allowed.png](screenshots/06-backward-seek-allowed.png) |
 | 7 | `start/end`, loop, 1.5×, 9:16, real progress и тема | Длительность фрагмента `6`, скорость `1.5`, завершено два цикла, состояние `playing` | Вертикальная геометрия, cyan-тема, реальная шкала и счётчик циклов отображаются корректно | [07-segment-loop-vertical-rate.png](screenshots/07-segment-loop-vertical-rate.png) |

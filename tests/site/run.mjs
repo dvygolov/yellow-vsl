@@ -11,7 +11,7 @@ page.on("pageerror", (error) => pageErrors.push(error.message));
 
 try {
   await page.addInitScript({ path: resolve("tests/browser/fake-youtube.js") });
-  await page.goto(`${server.origin}/`);
+  await page.goto(`${server.origin}/`, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => document.documentElement.dataset.playersReady === "true");
 
   assert.equal(await page.title(), "YellowVSL - бесплатный VSL-плеер на YouTube");
@@ -29,11 +29,24 @@ try {
   assert.equal((await page.locator("body").innerText()).includes("__VERSION__"), false, "версия подставлена при сборке");
   assert.equal((await page.locator("body").innerText()).includes("__SIZE__"), false, "размер minified-сборки подставлен при сборке");
   assert.equal(await page.locator("#example-forward, #example-back, #example-result, #event-log, #event-count").count(), 0, "тестовые кнопки и JSON-лог удалены");
-  assert.match(await page.locator("#install-code").textContent(), /yellow-vsl@v1\.5\.2/);
+  assert.match(await page.locator("#install-code").textContent(), /yellow-vsl@v1\.6\.0/);
   assert.match(await page.locator("#modes-code").textContent(), /\[5, 50\].*\[30, 70\].*\[50, 90\]/s);
   assert.match(await page.locator("#cta-code").textContent(), /background: "#ff3b30"/);
+  assert.match(await page.locator("#cta-code").textContent(), /reveal: "#offer"/);
+  assert.match(await page.locator("#cta-code").textContent(), /reveals: \[\{/);
+  assert.match(await page.locator("#cta-code").textContent(), /selector: "#order-form"/);
   assert.match(await page.locator("#docs-link").getAttribute("href"), /yellow-vsl#configuration-reference$/);
   assert.equal(await page.locator('meta[property="og:image"]').getAttribute("content"), "https://yellowvsl.pages.dev/og.png");
+
+  await page.evaluate(() => {
+    const player = window.yellowVslSite.examplePlayer;
+    player.adapter.player.time = 2.5;
+    player.timeline.maxWatched = 2.5;
+    player._tick();
+  });
+  assert.equal(await page.locator("#example-player .yvsl-hook").isVisible(), true, "подсказка появляется по времени");
+  assert.equal(await page.locator("#example-player .yvsl-hook").evaluate((node) => getComputedStyle(node).color), "rgb(255, 255, 255)", "текст подсказки контрастный");
+  assert.equal(await page.locator("#example-player .yvsl-hook").evaluate((node) => getComputedStyle(node).backgroundColor), "rgba(8, 10, 12, 0.92)", "у подсказки контрастный фон");
 
   await page.evaluate(() => {
     const player = window.yellowVslSite.examplePlayer;
@@ -45,7 +58,9 @@ try {
   assert.equal(await page.locator("#example-player .yvsl-cta").evaluate((node) => node.parentElement.classList.contains("yvsl-zone--bottom-right")), true, "CTA находится справа снизу поверх видео");
   assert.equal(await page.locator("#example-player .yvsl-cta").evaluate((node) => getComputedStyle(node).backgroundColor), "rgb(255, 212, 0)", "CTA принимает свой цвет фона");
   assert.equal(await page.locator("#example-player .yvsl-cta").evaluate((node) => getComputedStyle(node).color), "rgb(23, 20, 0)", "CTA принимает свой цвет текста");
-  assert.equal(await page.locator("#example-offer").isVisible(), true, "CTA раскрывает оффер");
+  assert.equal(await page.locator("#example-offer").isVisible(), false, "появление CTA само не раскрывает оффер");
+  await page.locator("#example-player .yvsl-cta").click();
+  assert.equal(await page.locator("#example-offer").isVisible(), true, "CTA раскрывает оффер после клика");
   assert.equal(await page.evaluate(() => window.yellowVslSite.fragmentPlayer.options.aspectRatioValue), 16 / 9, "фрагмент больше не притворяется вертикальным видео");
 
   await page.click("#example-unmute");
@@ -75,7 +90,7 @@ try {
   const enErrors = [];
   enPage.on("pageerror", (error) => enErrors.push(error.message));
   await enPage.addInitScript({ path: resolve("tests/browser/fake-youtube.js") });
-  await enPage.goto(`${server.origin}/`);
+  await enPage.goto(`${server.origin}/`, { waitUntil: "domcontentloaded" });
   await enPage.waitForFunction(() => document.documentElement.dataset.playersReady === "true");
   assert.equal(await enPage.getAttribute("html", "lang"), "en", "английский выбирается по языку браузера");
   assert.equal(await enPage.title(), "YellowVSL - free YouTube VSL player");

@@ -30,7 +30,7 @@ A free vanilla JavaScript VSL player backed by YouTube. YellowVSL adds Smart Aut
   data-video="https://youtu.be/M7lc1UVf-VE">
 </div>
 
-<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.5.2/dist/yellow-vsl.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.6.0/dist/yellow-vsl.min.js"></script>
 ```
 
 The defaults include:
@@ -66,10 +66,10 @@ Open `http://127.0.0.1:4173/demo/`. The demo covers Smart Autoplay, Smart Progre
 <div id="sales-video"></div>
 
 <section id="offer" hidden>
-  This block is revealed after the pitch.
+  This block is revealed after the CTA is clicked.
 </section>
 
-<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.5.2/dist/yellow-vsl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.6.0/dist/yellow-vsl.min.js"></script>
 <script>
   const player = YellowVSL.create("#sales-video", {
     video: "https://www.youtube.com/watch?v=M7lc1UVf-VE",
@@ -105,9 +105,8 @@ Open `http://127.0.0.1:4173/demo/`. The demo covers Smart Autoplay, Smart Progre
       id: "offer",
       start: 30,
       text: "Get the offer",
-      url: "https://example.com/checkout",
-      target: "_blank",
       reveal: "#offer",
+      scroll: true,
       placement: "bottom-right",
       background: "#ff3b30",
       color: "#ffffff",
@@ -118,7 +117,7 @@ Open `http://127.0.0.1:4173/demo/`. The demo covers Smart Autoplay, Smart Progre
 </script>
 ```
 
-All `start`, `end`, CTA and hook times use media time relative to the beginning of the displayed clip. Playback rate does not shift those cue points.
+All `start`, `end`, CTA, hook and reveal times are relative to the beginning of the displayed clip. Playback rate does not shift those cue points.
 
 ## Configuration reference
 
@@ -134,6 +133,7 @@ All `start`, `end`, CTA and hook times use media time relative to the beginning 
 | `aspectRatio` | `"16/9"`, `"9/16"` or another ratio | `"16/9"` | Container shape; use a vertical source video for 9:16 |
 | `ctas` | array | `[]` | Timed CTA buttons |
 | `hooks` | array | `[]` | Timed mini-hook text |
+| `reveals` | array | `[]` | Timed automatic page-block reveals |
 | `sticky` | boolean or object | `false` | Sticky mini-player |
 | `popup` | boolean or object | `false` | Modal player |
 | `theme` | object | default dark theme | Colors and geometry |
@@ -219,12 +219,11 @@ ctas: [{
   start: 45,
   end: 90,
   text: "Get the offer",
-  url: "https://example.com/checkout",
-  target: "_blank",
+  reveal: "#offer",
+  scroll: true,
   placement: "bottom-right",
   background: "#ff3b30",
   color: "#ffffff",
-  reveal: "#offer",
   persist: true,
   autoScroll: false
 }]
@@ -235,18 +234,43 @@ ctas: [{
 | `id` | Stable CTA ID used by events and saved unlocks |
 | `start`, `end` | Show/hide time relative to the clip start; omit `end` to keep the CTA visible |
 | `text` | Button text |
-| `url` | Destination URL; omit it to create a reveal-only button |
+| `url` | Destination URL; omit it for a CTA that reveals a page block |
 | `target` | `_self` or `_blank` |
 | `placement` | `above`, `below`, `top-left`, `top-right`, `bottom-left`, `bottom-right` |
 | `background` | CTA background color: hex, rgb, hsl, CSS variable or color name |
 | `color` | CTA text color |
-| `reveal` | CSS selector for page elements to reveal |
+| `reveal` | CSS selector for the page block to reveal after the CTA is clicked |
 | `persist` | Stores the unlocked offer in `localStorage`; `false` limits it to the active interval |
+| `scroll` | Smoothly scrolls to the revealed block after the click; defaults to `true` |
 | `autoScroll` | Scrolls the CTA into view when it appears |
+
+Use `url` and optionally `target` for a link CTA. Use `reveal` for a CTA that opens a hidden page block. Merely showing the CTA does not reveal the block.
+
+### Automatic page-block reveals
+
+`reveals` opens a block at a chosen time without a CTA or click:
+
+```js
+reveals: [{
+  id: "auto-order-form",
+  start: 90,
+  selector: "#order-form",
+  persist: true,
+  scroll: false
+}]
+```
+
+| Option | Purpose |
+| --- | --- |
+| `id` | Stable ID used for saved reveal state |
+| `start`, `end` | Reveal time and, with `persist: false`, hide time |
+| `selector` | CSS selector for the page block to reveal |
+| `persist` | Saves the revealed state in `localStorage`; defaults to `true` |
+| `scroll` | Scrolls to the block when it is revealed; defaults to `false` |
 
 ### Mini-hooks
 
-Hooks support `id`, `start`, `end`, `text` and the same six `placement` values:
+A mini-hook is an optional timed text prompt. It does not open anything or navigate anywhere. Use it for a short teaser, reminder or explanation. Hooks support `id`, `start`, `end`, `text` and the same six `placement` values:
 
 ```js
 hooks: [{
@@ -272,7 +296,7 @@ popup: {
 }
 ```
 
-`sticky: true` uses the bottom-right corner and default width. `popup.trigger` accepts a CSS selector for one or more external buttons. `popup.preload: true` loads YouTube in advance so the dialog opens immediately. Without `preload`, the iframe is created on first open.
+`sticky: true` uses the bottom-right corner and default width. Pausing keeps the sticky player in place so playback can resume there. The close button dismisses it and pauses the video. `popup.trigger` accepts a CSS selector for one or more external buttons. `popup.preload: true` loads YouTube in advance so the dialog opens immediately. Without `preload`, the iframe is created on first open.
 
 Fullscreen controls hide automatically after 2.4 seconds of playback. Tapping the video reveals them without pausing; controls remain visible while playback is paused.
 
@@ -288,7 +312,7 @@ Fullscreen controls hide automatically after 2.4 seconds of playback. Tapping th
 | `radius` | `--yvsl-radius` |
 | `shadow` | `--yvsl-shadow` |
 
-Overridable `locale` strings: `play`, `pause`, `mute`, `unmute`, `unmutePrompt`, `fullscreen`, `exitFullscreen`, `progress`, `continueTitle`, `continue`, `restart`, `autoplayBlocked`, `close`, `speed`, `genericError`, `identityError`, `embedError`, `unavailableError`.
+Overridable `locale` strings: `play`, `pause`, `mute`, `unmute`, `unmutePrompt`, `fullscreen`, `exitFullscreen`, `progress`, `continueTitle`, `continue`, `restart`, `autoplayBlocked`, `loading`, `close`, `speed`, `genericError`, `identityError`, `embedError`, `unavailableError`.
 
 ## Declarative attributes
 

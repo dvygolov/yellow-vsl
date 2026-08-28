@@ -13,6 +13,7 @@ export const DEFAULT_LOCALE = Object.freeze({
   continue: "Продолжить",
   restart: "Начать сначала",
   autoplayBlocked: "Нажмите, чтобы запустить видео",
+  loading: "Загрузка видео",
   close: "Закрыть",
   speed: "Скорость",
   genericError: "Не удалось загрузить видео",
@@ -53,6 +54,7 @@ export const DEFAULT_OPTIONS = Object.freeze({
   popup: false,
   ctas: Object.freeze([]),
   hooks: Object.freeze([]),
+  reveals: Object.freeze([]),
   theme: Object.freeze({}),
   locale: DEFAULT_LOCALE
 });
@@ -108,6 +110,12 @@ export function normalizeOptions(options = {}) {
       : [],
     hooks: Array.isArray(options.hooks)
       ? options.hooks.map((item, index) => normalizeTimedItem(item, index, "hook"))
+      : [],
+    reveals: Array.isArray(options.reveals)
+      ? options.reveals.map((item, index) => ({
+          ...normalizeTimedItem(item, index, "reveal"),
+          selector: String(item?.selector || item?.reveal || "")
+        }))
       : [],
     theme: { ...(options.theme || {}) },
     locale: { ...DEFAULT_LOCALE, ...(options.locale || {}) }

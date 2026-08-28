@@ -100,7 +100,7 @@
         <article class="feature-card">
           <span class="feature-number">04</span>
           <h3 data-i18n="feature.4.title">CTA, подсказки и блоки лендинга</h3>
-          <p data-i18n="feature.4.text">CTA - кликабельная кнопка со ссылкой. Mini-hook - короткая текстовая подсказка без ссылки. Для скрытого блока укажите CSS-селектор, например #offer или .order-form. Плеер покажет его на заданной секунде.</p>
+          <p data-i18n="feature.4.text">CTA может открыть ссылку или скрытый блок после клика. Блок можно раскрыть автоматически через reveals[]. Mini-hook - необязательная текстовая подсказка, которая появляется на заданное время.</p>
         </article>
         <article class="feature-card">
           <span class="feature-number">05</span>
@@ -132,7 +132,7 @@
           <div class="example-actions">
             <button id="example-unmute" class="button button--primary" type="button" data-i18n="examples.main.unmute">Включить звук + сначала</button>
           </div>
-          <div id="example-offer" class="offer" hidden><strong data-i18n="examples.main.offerTitle">Оффер открыт</strong><span data-i18n="examples.main.offerText">Блок #example-offer был скрыт при загрузке страницы и появился на шестой секунде.</span></div>
+          <div id="example-offer" class="offer" hidden><strong data-i18n="examples.main.offerTitle">Оффер открыт</strong><span data-i18n="examples.main.offerText">Блок #example-offer был скрыт и открылся только после клика по CTA.</span></div>
         </article>
 
         <article class="example-card example-card--fragment">
@@ -193,8 +193,8 @@
       <div class="config-examples">
         <article class="config-card">
           <span class="example-kicker" data-i18n="install.cta.kicker">CTA по таймеру</span>
-          <h3 data-i18n="install.cta.title">Текст, ссылка, угол и цвета</h3>
-          <p data-i18n="install.cta.text">Кнопка появится на 45-й секунде справа снизу. background задаёт фон, color - цвет текста.</p>
+          <h3 data-i18n="install.cta.title">Ссылка, блок по клику или автооткрытие</h3>
+          <p data-i18n="install.cta.text">CTA может вести по ссылке или раскрывать блок и прокручивать к нему страницу. reveals[] открывает блок автоматически в заданное время.</p>
           <div class="code-panel code-panel--compact">
             <div class="code-top"><span>JavaScript</span><button type="button" data-copy-target="cta-code" data-i18n="install.copy">Копировать</button></div>
             <pre><code id="cta-code" data-i18n="code.cta"></code></pre>
@@ -225,7 +225,7 @@
       <div class="docs-callout">
         <div>
           <strong data-i18n="install.docs.title">Все параметры собраны на GitHub</strong>
-          <span data-i18n="install.docs.text">README содержит таблицы playback, progress, controls, stage, CTA/hooks, theme, методов и событий.</span>
+          <span data-i18n="install.docs.text">README содержит таблицы playback, progress, controls, stage, CTA, hooks, reveals, theme, методов и событий.</span>
         </div>
         <a id="docs-link" class="button button--primary" href="https://github.com/dvygolov/yellow-vsl#configuration-reference" target="_blank" rel="noopener" data-i18n="install.docs.button">Открыть полную документацию</a>
       </div>

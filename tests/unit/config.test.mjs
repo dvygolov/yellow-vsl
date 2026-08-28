@@ -11,13 +11,14 @@ test("конфигурация по умолчанию включает Smart Pr
   assert.equal(options.playback.resume, "ask");
 });
 
-test("start/end, rate, timed CTA и hooks нормализуются", () => {
+test("start/end, rate, timed CTA, hooks и автоматические reveals нормализуются", () => {
   const options = normalizeOptions({
     video: "M7lc1UVf-VE",
     playback: { start: 15, end: 10, rate: 4, autoplay: false },
     progress: { mode: "real" },
     ctas: [{ start: 9, end: 4, placement: "bottom-right", text: "CTA", background: "#123456", color: "#fff" }],
-    hooks: [{ id: "hook", start: -2, end: 3, placement: "top-left" }]
+    hooks: [{ id: "hook", start: -2, end: 3, placement: "top-left" }],
+    reveals: [{ start: 12, end: 8, selector: "#offer", persist: false }]
   });
   assert.equal(options.playback.start, 15);
   assert.equal(options.playback.end, 15);
@@ -27,6 +28,14 @@ test("start/end, rate, timed CTA и hooks нормализуются", () => {
   assert.deepEqual(options.ctas[0], { start: 9, end: 9, placement: "bottom-right", text: "CTA", background: "#123456", color: "#fff", id: "cta-1" });
   assert.equal(options.hooks[0].start, 0);
   assert.equal(options.hooks[0].placement, "top-left");
+  assert.deepEqual(options.reveals[0], {
+    start: 12,
+    end: 12,
+    selector: "#offer",
+    persist: false,
+    id: "reveal-1",
+    placement: "below"
+  });
   assert.equal(options.stage.poster, "auto");
   assert.equal(options.stage.clickToToggle, true);
   assert.equal(options.stage.revealDelay, 0);

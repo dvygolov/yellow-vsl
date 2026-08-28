@@ -12,8 +12,8 @@ const mainPlayer = window.YellowVSL.create("#main-player", {
   sticky: { position: "bottom-right", width: "390px" },
   controls: { speed: true },
   playback: { autoplay: mainAutoplay, end: 60 },
-  hooks: [{ id: "mini-hook", start: 2, end: 5.5, text: "Mini-hook работает: оффер появится на шестой секунде", placement: "top-left" }],
-  ctas: [{ id: "demo-offer", start: 6, text: "Перейти к открытому предложению", reveal: "#offer", placement: "bottom-right", persist: true }]
+  hooks: [{ id: "mini-hook", start: 2, end: 5.5, text: "Скоро появится кнопка с предложением", placement: "top-left" }],
+  ctas: [{ id: "demo-offer", start: 6, text: "Открыть предложение", reveal: "#offer", placement: "bottom-right", persist: true }]
 });
 
 const segmentPlayer = window.YellowVSL.create("#segment-player", {
