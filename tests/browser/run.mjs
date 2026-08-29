@@ -170,6 +170,7 @@ try {
     await page.evaluate(() => window.mainPlayer.play());
     await page.waitForFunction(() => window.mainPlayer.getState().playerState === 1);
 
+    await page.emulateMedia({ reducedMotion: "reduce" });
     const loadingIndicator = await page.evaluate(async () => {
       const mount = document.createElement("div");
       mount.id = "loading-indicator";
@@ -181,10 +182,18 @@ try {
       await player.ready;
       player.adapter.play = () => {};
       player.play();
+      const spinnerBefore = getComputedStyle(player.dom.play, "::after");
       const requested = {
         active: player.dom.play.classList.contains("yvsl-is-loading"),
-        label: player.dom.play.getAttribute("aria-label")
+        label: player.dom.play.getAttribute("aria-label"),
+        display: spinnerBefore.display,
+        width: spinnerBefore.width,
+        height: spinnerBefore.height,
+        animationName: spinnerBefore.animationName,
+        transformBefore: spinnerBefore.transform
       };
+      await new Promise((resolveWait) => window.setTimeout(resolveWait, 220));
+      requested.transformAfter = getComputedStyle(player.dom.play, "::after").transform;
       player._onStateChange(3);
       const buffering = player.dom.play.classList.contains("yvsl-is-loading");
       player._onStateChange(1);
@@ -194,8 +203,14 @@ try {
     });
     assert.equal(loadingIndicator.requested.active, true, `${name}: play request shows loader`);
     assert.match(loadingIndicator.requested.label, /загруз/i, `${name}: loader has an accessible label`);
+    assert.equal(loadingIndicator.requested.display, "block", `${name}: spinner is a transformable block`);
+    assert.equal(loadingIndicator.requested.width, "20px", `${name}: spinner has a fixed width`);
+    assert.equal(loadingIndicator.requested.height, "20px", `${name}: spinner has a fixed height`);
+    assert.equal(loadingIndicator.requested.animationName, "yvsl-spin", `${name}: spinner animation is attached`);
+    assert.notEqual(loadingIndicator.requested.transformAfter, loadingIndicator.requested.transformBefore, `${name}: spinner angle changes over time`);
     assert.equal(loadingIndicator.buffering, true, `${name}: buffering keeps loader visible`);
     assert.equal(loadingIndicator.playing, false, `${name}: playing hides loader`);
+    await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.evaluate(() => window.mainPlayer.play());
     await page.waitForFunction(() => window.mainPlayer.getState().playerState === 1);
 
@@ -303,6 +318,22 @@ try {
     await page.locator("#main .yvsl-play").click();
     await page.waitForFunction(() => window.mainPlayer.getState().playerState === 2);
     assert.equal(await page.locator("#main .yvsl-root--sticky").isVisible(), true, `${name}: sticky stays visible while paused`);
+    assert.equal(await page.locator("#main .yvsl-sticky-close").isVisible(), true, `${name}: paused sticky keeps its close button`);
+    const pausedStickyClose = await page.locator("#main .yvsl-root").evaluate((root) => {
+      const close = root.querySelector(".yvsl-sticky-close");
+      const poster = root.querySelector(".yvsl-poster");
+      const rect = close.getBoundingClientRect();
+      return {
+        closeZ: Number(getComputedStyle(close).zIndex),
+        posterZ: Number(getComputedStyle(poster).zIndex),
+        pointerEvents: getComputedStyle(close).pointerEvents,
+        width: rect.width,
+        height: rect.height
+      };
+    });
+    assert.ok(pausedStickyClose.closeZ > pausedStickyClose.posterZ, `${name}: sticky close sits above the paused poster`);
+    assert.notEqual(pausedStickyClose.pointerEvents, "none", `${name}: sticky close accepts clicks`);
+    assert.ok(pausedStickyClose.width >= 44 && pausedStickyClose.height >= 44, `${name}: sticky close has a 44px hit target`);
     await page.locator("#main .yvsl-play").click();
     await page.waitForFunction(() => window.mainPlayer.getState().playerState === 1);
     assert.equal(await page.locator("#main .yvsl-root--sticky").isVisible(), true, `${name}: sticky resumes in place`);

@@ -1,4 +1,4 @@
-/*! YellowVSL v1.6.0 | MIT License | https://github.com/dvygolov/yellow-vsl */
+/*! YellowVSL v1.6.1 | MIT License | https://github.com/dvygolov/yellow-vsl */
 
 // src/utils.js
 var DEFAULT_PROGRESS_POINTS = Object.freeze([
@@ -427,14 +427,19 @@ var STYLES = `
 .yvsl-play.yvsl-is-loading, .yvsl-poster__play.yvsl-is-loading { color: transparent; font-size: 0; padding-left: 0; }
 .yvsl-play.yvsl-is-loading::after, .yvsl-poster__play.yvsl-is-loading::after {
   content: "";
-  width: 18px;
-  aspect-ratio: 1;
+  display: block;
+  flex: none;
+  width: 20px;
+  height: 20px;
   border: 3px solid rgba(255,255,255,.36);
   border-top-color: var(--yvsl-accent);
+  border-right-color: var(--yvsl-accent);
   border-radius: 50%;
   animation: yvsl-spin .72s linear infinite;
+  transform-origin: center;
+  will-change: transform;
 }
-.yvsl-poster__play.yvsl-is-loading::after { width: clamp(24px, 4vw, 34px); border-width: 4px; border-color: rgba(23,20,0,.28); border-top-color: #171400; }
+.yvsl-poster__play.yvsl-is-loading::after { width: clamp(26px, 4vw, 36px); height: clamp(26px, 4vw, 36px); border-width: 4px; border-color: rgba(23,20,0,.25); border-top-color: #171400; border-right-color: #171400; }
 @keyframes yvsl-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .yvsl-is-loading::after { animation-duration: 1.6s; } }
 .yvsl-btn:focus-visible, .yvsl-progress:focus-visible, .yvsl-cta:focus-visible, .yvsl-speed:focus-visible {
@@ -478,7 +483,7 @@ var STYLES = `
   width: var(--yvsl-sticky-width, min(420px, calc(100vw - 24px)));
   z-index: 2147483000;
 }
-.yvsl-sticky-close { display: none; position: absolute; top: 8px; right: 8px; z-index: 2; background: rgba(0,0,0,.72); }
+.yvsl-sticky-close { display: none; position: absolute; top: 8px; right: 8px; z-index: 6; width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; background: rgba(0,0,0,.78); border-radius: 50%; box-shadow: 0 4px 18px rgba(0,0,0,.4); font-size: 22px; }
 .yvsl-root--sticky .yvsl-sticky-close { display: inline-flex; }
 .yvsl-popup-backdrop {
   position: fixed;
@@ -525,6 +530,7 @@ var STYLES = `
 }
 @media (prefers-reduced-motion: reduce) {
   .yvsl-root *, .yvsl-root *::before, .yvsl-root *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+  .yvsl-root .yvsl-play.yvsl-is-loading::after, .yvsl-root .yvsl-poster__play.yvsl-is-loading::after { animation: yvsl-spin 1.6s linear infinite !important; }
 }
 `;
 var installed = false;
@@ -1655,7 +1661,7 @@ function safeLocalStorage() {
 }
 
 // src/index.js
-var version = "1.6.0";
+var version = "1.6.1";
 var autoInstances = /* @__PURE__ */ new WeakMap();
 function create(target, options = {}) {
   return new YellowVSLPlayer(target, options);
