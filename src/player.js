@@ -64,6 +64,8 @@ export class YellowVSLPlayer {
     this.captionsInitialized = false;
     this.captionIntent = null;
     this.captionProbeTimer = null;
+    this.captionModuleReady = false;
+    this.captionApplyTimer = null;
     this.fullscreenControlsTimer = null;
     this.adapterMountPromise = null;
     this.pendingPlay = false;
@@ -370,7 +372,10 @@ export class YellowVSLPlayer {
     const previousState = this.playerState;
     const confirmedByClock = this.clockConfirmedPlaying;
     this.playerState = state;
-    if (state === YT_STATE.BUFFERING || state === YT_STATE.PLAYING) this._startCaptionProbe();
+    if (state === YT_STATE.BUFFERING || state === YT_STATE.PLAYING) {
+      this._startCaptionProbe();
+      this._syncCaptionIntent();
+    }
     this.loading = state === YT_STATE.BUFFERING;
     if (state === YT_STATE.BUFFERING) {
       this.clockConfirmedPlaying = false;
@@ -451,13 +456,15 @@ export class YellowVSLPlayer {
     const tracks = this.adapter.getCaptionTracks?.() || [];
     const captionTracks = tracks.filter((track) => track && typeof track.languageCode === "string");
     if (!captionTracks.length) {
-      this.captionsEnabled = false;
-      this.dom.captions.hidden = true;
-      this._updateCaptionButton();
+      if (!this.captionTracks.length) {
+        this.captionsEnabled = false;
+        this.dom.captions.hidden = true;
+        this._updateCaptionButton();
+      }
       return;
     }
 
-    this._applyCaptionTracks(captionTracks);
+    this._applyCaptionTracks(captionTracks, true);
     for (const instance of instances) {
       if (
         instance !== this
@@ -466,47 +473,47 @@ export class YellowVSLPlayer {
         && instance.adapter
         && !instance.captionTracks.length
       ) {
-        instance._applyCaptionTracks(captionTracks);
+        instance._applyCaptionTracks(captionTracks, false);
       }
     }
   }
 
-  _applyCaptionTracks(tracks) {
+  _applyCaptionTracks(tracks, moduleReady = false) {
     this.captionTracks = tracks;
-    this._stopCaptionProbe();
+    if (moduleReady) {
+      this.captionModuleReady = true;
+      this._stopCaptionProbe();
+    }
+
+    const activeTrack = moduleReady ? (this.adapter.getCaptionTrack?.() || {}) : {};
+    const activeLanguage = typeof activeTrack.languageCode === "string" ? activeTrack.languageCode : null;
+    const desiredState = this.captionIntent ?? this.options.captions.enabled;
 
     if (!this.captionsInitialized) {
-      const activeTrack = this.adapter.getCaptionTrack?.() || {};
-      const activeLanguage = typeof activeTrack.languageCode === "string" ? activeTrack.languageCode : null;
-      this.captionsEnabled = Boolean(activeLanguage);
       this.captionsInitialized = true;
-
-      const desiredState = this.captionIntent ?? this.options.captions.enabled;
-      if (desiredState === true) {
-        this.captionLanguage = this.options.captions.language || this.captionLanguage || activeLanguage || this.captionTracks[0].languageCode;
-        this.enableCaptions(this.captionLanguage);
-      } else if (desiredState === false) {
-        this.captionLanguage = this.options.captions.language || this.captionLanguage || activeLanguage || this.captionTracks[0].languageCode;
-        this.disableCaptions();
-      } else {
-        this.captionLanguage = activeLanguage || this.options.captions.language || this.captionTracks[0].languageCode;
-      }
+      this.captionLanguage = this.options.captions.language || activeLanguage || this.captionTracks[0].languageCode;
+      this.captionsEnabled = desiredState === "auto" ? Boolean(activeLanguage) : desiredState;
+    } else if (moduleReady && desiredState === "auto") {
+      this.captionsEnabled = Boolean(activeLanguage);
+      this.captionLanguage = activeLanguage || this.captionLanguage || this.options.captions.language || this.captionTracks[0].languageCode;
     }
+
+    if (desiredState !== "auto") this._scheduleCaptionApply(desiredState);
 
     this.dom.captions.hidden = !this.options.controls.captions;
     this._updateCaptionButton();
   }
 
   _startCaptionProbe() {
-    if (this.destroyed || this.captionTracks.length || this.captionProbeTimer) return;
+    if (this.destroyed || this.captionModuleReady || this.captionProbeTimer) return;
     let attempts = 0;
     const probe = () => {
       this.captionProbeTimer = null;
-      if (this.destroyed || this.captionTracks.length) return;
+      if (this.destroyed || this.captionModuleReady) return;
       attempts += 1;
       if (attempts === 1 || attempts === 8) this.adapter?.reloadCaptions?.();
       this._onApiChange();
-      if (!this.captionTracks.length && attempts < 20) {
+      if (!this.captionModuleReady && attempts < 20) {
         this.captionProbeTimer = window.setTimeout(probe, 250);
       }
     };
@@ -517,6 +524,49 @@ export class YellowVSLPlayer {
     if (!this.captionProbeTimer) return;
     window.clearTimeout(this.captionProbeTimer);
     this.captionProbeTimer = null;
+  }
+
+  _applyCaptionState(enabled) {
+    if (!this.adapter) return false;
+    if (!enabled) {
+      this.adapter.setCaptionTrack?.(null);
+      return true;
+    }
+    const track = this._captionTrack();
+    if (!track) return false;
+    this.captionLanguage = track.languageCode;
+    this.adapter.setCaptionTrack?.({ languageCode: track.languageCode });
+    return true;
+  }
+
+  _scheduleCaptionApply(enabled) {
+    this._stopCaptionApply();
+    if (!this._applyCaptionState(enabled)) {
+      this._startCaptionProbe();
+      return;
+    }
+
+    let attempt = 1;
+    const retry = () => {
+      this.captionApplyTimer = null;
+      const desiredState = this.captionIntent ?? this.options.captions.enabled;
+      if (this.destroyed || desiredState !== enabled) return;
+      this._applyCaptionState(enabled);
+      attempt += 1;
+      if (attempt < 4) this.captionApplyTimer = window.setTimeout(retry, attempt * 300);
+    };
+    this.captionApplyTimer = window.setTimeout(retry, 250);
+  }
+
+  _syncCaptionIntent() {
+    const desiredState = this.captionIntent ?? this.options.captions.enabled;
+    if (desiredState !== "auto") this._scheduleCaptionApply(desiredState);
+  }
+
+  _stopCaptionApply() {
+    if (!this.captionApplyTimer) return;
+    window.clearTimeout(this.captionApplyTimer);
+    this.captionApplyTimer = null;
   }
 
   _captionTrack(language = null) {
@@ -1083,9 +1133,9 @@ export class YellowVSLPlayer {
     if (typeof language === "string" && language.trim()) this.captionLanguage = language.trim().toLowerCase();
     const track = this._captionTrack(language);
     if (!track || !this.adapter) return this;
-    this.adapter.setCaptionTrack?.({ languageCode: track.languageCode });
     this.captionLanguage = track.languageCode;
     this.captionsEnabled = true;
+    this._scheduleCaptionApply(true);
     this._updateCaptionButton();
     this._emit("captions", { enabled: true, language: this.captionLanguage });
     return this;
@@ -1093,8 +1143,8 @@ export class YellowVSLPlayer {
 
   disableCaptions() {
     this.captionIntent = false;
-    this.adapter?.setCaptionTrack?.(null);
     this.captionsEnabled = false;
+    this._scheduleCaptionApply(false);
     this._updateCaptionButton();
     this._emit("captions", { enabled: false, language: this.captionLanguage });
     return this;
@@ -1209,6 +1259,7 @@ export class YellowVSLPlayer {
     this._stopTicker();
     this._stopPlaybackProbe();
     this._stopCaptionProbe();
+    this._stopCaptionApply();
     this._clearFullscreenControlsTimer();
     this._cancelStageWarmup();
     this.stickyObserver?.disconnect();

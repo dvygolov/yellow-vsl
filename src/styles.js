@@ -30,7 +30,6 @@ export const STYLES = `
 }
 .yvsl-player-host { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; }
 .yvsl-player-host > div, .yvsl-player-host iframe, .yvsl-stage > iframe { width: 100% !important; height: 100% !important; display: block; border: 0; pointer-events: none !important; }
-.yvsl-stage > iframe.yvsl-player-host { top: -1000px !important; bottom: auto !important; height: calc(100% + 2000px) !important; }
 .yvsl-stage-interaction { position: absolute; inset: 0; z-index: 1; }
 .yvsl-stage-interaction[role="button"] { cursor: pointer; }
 .yvsl-stage-interaction:focus-visible { outline: 3px solid color-mix(in srgb, var(--yvsl-accent) 70%, white); outline-offset: -5px; }
@@ -120,8 +119,9 @@ export const STYLES = `
   transform-origin: center;
   will-change: transform;
 }
-.yvsl-poster__play.yvsl-is-loading::after { width: clamp(26px, 4vw, 36px); height: clamp(26px, 4vw, 36px); border-width: 4px; border-color: rgba(23,20,0,.25); border-top-color: #171400; border-right-color: #171400; }
+.yvsl-poster__play.yvsl-is-loading::after { position: absolute; top: 50%; left: 50%; width: clamp(26px, 4vw, 36px); height: clamp(26px, 4vw, 36px); border-width: 4px; border-color: rgba(23,20,0,.25); border-top-color: #171400; border-right-color: #171400; animation-name: yvsl-spin-centered; }
 @keyframes yvsl-spin { to { transform: rotate(360deg); } }
+@keyframes yvsl-spin-centered { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .yvsl-is-loading::after { animation-duration: 1.6s; } }
 .yvsl-btn:focus-visible, .yvsl-progress:focus-visible, .yvsl-cta:focus-visible, .yvsl-speed:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--yvsl-accent) 70%, white);
@@ -213,7 +213,8 @@ export const STYLES = `
 }
 @media (prefers-reduced-motion: reduce) {
   .yvsl-root *, .yvsl-root *::before, .yvsl-root *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
-  .yvsl-root .yvsl-play.yvsl-is-loading::after, .yvsl-root .yvsl-poster__play.yvsl-is-loading::after { animation: yvsl-spin 1.6s linear infinite !important; }
+  .yvsl-root .yvsl-play.yvsl-is-loading::after { animation: yvsl-spin 1.6s linear infinite !important; }
+  .yvsl-root .yvsl-poster__play.yvsl-is-loading::after { animation: yvsl-spin-centered 1.6s linear infinite !important; }
 }
 `;
 

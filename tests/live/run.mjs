@@ -39,6 +39,14 @@ try {
     assert.equal(enabledCaptions.captionLanguage, "ru", `${name}: configured Russian track selected`);
     assert.equal(enabledCaptions.playerState, beforeCaptions.playerState, `${name}: CC does not change play/pause`);
     assert.ok(enabledCaptions.currentTime >= beforeCaptions.currentTime, `${name}: CC does not seek to the beginning`);
+    const captionSegment = page.frameLocator("#live iframe").locator(".ytp-caption-segment").first();
+    await captionSegment.waitFor({ state: "visible", timeout: 15000 });
+    const captionBox = await captionSegment.boundingBox();
+    const stageBox = await page.locator("#live .yvsl-stage").boundingBox();
+    const iframeBox = await page.locator("#live iframe").boundingBox();
+    assert.ok(captionBox && stageBox && iframeBox, `${name}: caption and player geometry available`);
+    assert.ok(captionBox.y >= stageBox.y && captionBox.y + captionBox.height <= stageBox.y + stageBox.height, `${name}: native captions are visible inside the video frame`);
+    assert.ok(Math.abs(iframeBox.y - stageBox.y) <= 1 && Math.abs(iframeBox.height - stageBox.height) <= 1, `${name}: YouTube iframe matches the visible frame`);
     await page.locator("#live .yvsl-captions").click();
     assert.equal(await page.evaluate(() => window.livePlayer.getState().captions), false, `${name}: second CC click disables captions`);
     await page.locator("#live-popup-trigger").click();
