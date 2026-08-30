@@ -96,6 +96,11 @@ h1 span { color: var(--yellow); }
 .offer { display: grid; gap: 4px; margin: 16px 18px 18px; padding: 18px; color: #171400; background: linear-gradient(135deg, var(--yellow), #ffed88); border-radius: 13px; }
 .offer strong { font-size: 21px; }
 .fragment-demo { width: 100%; margin: 20px auto; }
+.example-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; grid-column: span 2; }
+.example-card--player { padding: 0; }
+.example-card--player .example-head { min-height: 190px; padding: 22px; }
+.example-card--player .example-head > div { max-width: 440px; }
+.example-card--player .example-head p { margin: 12px 0 0; }
 .example-card--popup { display: flex; align-items: center; justify-content: space-between; gap: 24px; grid-column: span 2; }
 .example-card--popup > div:first-child { max-width: 680px; }
 .example-card--events { grid-column: span 2; }
@@ -157,6 +162,7 @@ footer a:hover { color: var(--text); }
   .ticker div:nth-child(n+4) { display: none; }
   .examples-grid { grid-template-columns: 1fr; }
   .example-card--main { grid-row: auto; }
+  .example-pair { grid-template-columns: 1fr; grid-column: auto; }
   .example-card--popup, .example-card--events { grid-column: auto; }
   .example-card--popup { align-items: flex-start; flex-direction: column; }
   .install-notes, .boundary-grid { grid-template-columns: 1fr; }
@@ -188,6 +194,7 @@ footer a:hover { color: var(--text); }
   .example-card { padding: 16px; border-radius: 15px; }
   .example-card--main { padding: 0; }
   .example-card--main .example-head { padding: 16px; }
+  .example-card--player .example-head { min-height: 0; padding: 16px; }
   .example-head { flex-direction: column; }
   .example-actions .button { flex: 1 1 100%; }
   .event-list { grid-template-columns: 1fr; }

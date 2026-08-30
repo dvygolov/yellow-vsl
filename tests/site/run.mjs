@@ -17,10 +17,16 @@ try {
   assert.equal(await page.title(), "YellowVSL - бесплатный VSL-плеер на YouTube");
   assert.equal(await page.getAttribute("html", "lang"), "ru", "русский выбирается по языку браузера");
   assert.equal(await page.locator('[data-language="ru"]').getAttribute("aria-current"), "page", "русский флаг активен");
-  assert.equal(await page.locator("[data-fake-youtube]").count(), 4, "четыре примера, включая popup, загружены заранее");
+  assert.equal(await page.locator("[data-fake-youtube]").count(), 6, "шесть примеров, включая popup, загружены заранее");
   assert.equal(await page.evaluate(() => window.yellowVslSite.heroPlayer.getState().videoId), "Y7jHPB7FjhM", "на сайте используется выбранное видео");
   assert.equal(await page.evaluate(() => window.yellowVslSite.heroPlayer.options.playback.end), null, "hero показывает полное видео");
   assert.equal(await page.evaluate(() => window.yellowVslSite.examplePlayer.options.playback.end), null, "основной пример показывает полное видео");
+  assert.deepEqual(
+    await page.evaluate(() => window.yellowVslSite.fastProgressPlayer.options.progress.points),
+    [[0, 0], [0.001, 0.5], [0.1, 0.58], [0.5, 0.8], [1, 1]],
+    "быстрый Smart Progress за первые секунды доходит до половины шкалы"
+  );
+  assert.equal(await page.evaluate(() => window.yellowVslSite.popupPlayer.options.progress.mode), "smart", "popup показывает Smart Progress");
   assert.equal(await page.locator("#hero-player [data-fake-youtube]").evaluate((node) => getComputedStyle(node).pointerEvents), "none", "YouTube iframe не получает hover");
   assert.equal((await page.locator("body").innerText()).includes("Это настоящий плеер, а не картинка"), false, "нежелательная подпись удалена");
   assert.equal((await page.locator("body").innerText()).includes("Живые примеры"), false, "калька про живые примеры удалена");
@@ -29,14 +35,36 @@ try {
   assert.equal((await page.locator("body").innerText()).includes("__VERSION__"), false, "версия подставлена при сборке");
   assert.equal((await page.locator("body").innerText()).includes("__SIZE__"), false, "размер minified-сборки подставлен при сборке");
   assert.equal(await page.locator("#example-forward, #example-back, #example-result, #event-log, #event-count").count(), 0, "тестовые кнопки и JSON-лог удалены");
-  assert.match(await page.locator("#install-code").textContent(), /yellow-vsl@v1\.6\.2/);
+  assert.match(await page.locator("#install-code").textContent(), /yellow-vsl@v1\.6\.3/);
   assert.match(await page.locator("#modes-code").textContent(), /\[5, 50\].*\[30, 70\].*\[50, 90\]/s);
   assert.match(await page.locator("#cta-code").textContent(), /background: "#ff3b30"/);
   assert.match(await page.locator("#cta-code").textContent(), /reveal: "#offer"/);
+  assert.match(await page.locator("#cta-code").textContent(), /url: "https:\/\/example\.com"/);
+  assert.match(await page.locator("#cta-code").textContent(), /target: "_blank"/);
   assert.match(await page.locator("#cta-code").textContent(), /reveals: \[\{/);
   assert.match(await page.locator("#cta-code").textContent(), /selector: "#order-form"/);
   assert.match(await page.locator("#docs-link").getAttribute("href"), /yellow-vsl#configuration-reference$/);
   assert.equal(await page.locator('meta[property="og:image"]').getAttribute("content"), "https://yellowvsl.pages.dev/og.png");
+
+  await page.evaluate(() => {
+    const player = window.yellowVslSite.fastProgressPlayer;
+    player.adapter.player.time = 2.4;
+    player.timeline.maxWatched = 2.4;
+    player._tick();
+  });
+  assert.ok(Number(await page.locator("#fast-progress-player .yvsl-progress").inputValue()) >= 500, "быстрая шкала заполняется примерно наполовину за первые секунды");
+
+  await page.evaluate(() => {
+    const player = window.yellowVslSite.externalCtaPlayer;
+    player.adapter.player.time = 3.1;
+    player.timeline.maxWatched = 3.1;
+    player._tick();
+  });
+  const externalCta = page.locator("#external-cta-player .yvsl-cta");
+  assert.equal(await externalCta.isVisible(), true, "внешняя CTA появляется по таймеру");
+  assert.equal(await externalCta.getAttribute("href"), "https://yellowweb.top/", "CTA ведёт на yellowweb.top");
+  assert.equal(await externalCta.getAttribute("target"), "_blank", "CTA открывает сайт в новой вкладке");
+  assert.equal(await externalCta.getAttribute("rel"), "noopener noreferrer", "внешняя вкладка открывается безопасно");
 
   await page.evaluate(() => {
     const player = window.yellowVslSite.examplePlayer;
@@ -69,7 +97,8 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.click("#open-popup");
   assert.equal(await page.locator(".yvsl-popup-backdrop").isVisible(), true, "popup открыт");
-  assert.equal(await page.locator("[data-fake-youtube]").count(), 4, "popup повторно не создаёт YouTube iframe");
+  assert.equal(await page.locator("[data-fake-youtube]").count(), 6, "popup повторно не создаёт YouTube iframe");
+  assert.equal(await page.locator(".yvsl-popup-panel .yvsl-progress").isVisible(), true, "у popup есть таймлайн");
   assert.equal(await page.locator(".yvsl-popup-backdrop").evaluate((node) => getComputedStyle(node).padding), "0px", "мобильный popup занимает весь экран без белых полей");
   assert.equal(await page.locator(".yvsl-popup-panel .yvsl-root").evaluate((node) => getComputedStyle(node).borderRadius), "0px", "у мобильного popup нет белых углов");
   await page.click(".yvsl-popup-close");

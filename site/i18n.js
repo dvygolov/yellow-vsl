@@ -76,8 +76,16 @@
       "examples.fragment.kicker": "Фрагмент",
       "examples.fragment.title": "10-16 сек · 1,5× · повтор",
       "examples.fragment.start": "Запустить фрагмент",
+      "examples.fast.kicker": "Кастомная матрица",
+      "examples.fast.title": "50% шкалы за первые 2–3 секунды",
+      "examples.fast.text": "На отметке 0,1% реального просмотра шкала уже показывает 50%. После этого её заполнение резко замедляется.",
+      "examples.fast.status": "0,1% → 50%",
+      "examples.external.kicker": "Внешняя CTA",
+      "examples.external.title": "Кнопка открывает сайт в новой вкладке",
+      "examples.external.text": "Через три секунды поверх видео появится кнопка, ведущая на yellowweb.top.",
+      "examples.external.status": "CTA · 3 сек",
       "examples.popup.title": "Видео по кнопке поверх страницы",
-      "examples.popup.text": "Popup нужен, когда видео должно открываться по кнопке и не занимать место в макете. Плеер загружается заранее; при закрытии видео ставится на паузу.",
+      "examples.popup.text": "Popup нужен, когда видео должно открываться по кнопке и не занимать место в макете. В нём работает Smart Progress; при закрытии видео ставится на паузу.",
       "examples.popup.open": "Открыть popup-плеер",
       "examples.events.kicker": "События",
       "examples.events.title": "Что можно отслеживать",
@@ -123,6 +131,7 @@
       "dynamic.backward": "Возврат к {actual} с разрешён: эта часть уже была просмотрена.",
       "player.hook": "Скоро появится кнопка с предложением",
       "player.cta": "Открыть предложение",
+      "player.yellowwebCta": "Открыть Жёлтый Веб",
       "code.cta": `const player = YellowVSL.create("#vsl", {
   video: "https://youtu.be/VIDEO_ID",
   ctas: [{
@@ -135,6 +144,13 @@
     background: "#ff3b30",
     color: "#ffffff",
     persist: true
+  }, {
+    id: "external-offer",
+    start: 60,
+    text: "Перейти на сайт",
+    url: "https://example.com",
+    target: "_blank",
+    placement: "below"
   }],
   reveals: [{
     id: "auto-order-form",
@@ -223,8 +239,16 @@ popup: false`
       "examples.fragment.kicker": "Clip",
       "examples.fragment.title": "10-16 sec · 1.5× · loop",
       "examples.fragment.start": "Play the clip",
+      "examples.fast.kicker": "Custom curve",
+      "examples.fast.title": "50% of the bar in the first 2–3 seconds",
+      "examples.fast.text": "At 0.1% of actual watch time, the bar already shows 50%. It fills much more slowly after that.",
+      "examples.fast.status": "0.1% → 50%",
+      "examples.external.kicker": "External CTA",
+      "examples.external.title": "Open a website in a new tab",
+      "examples.external.text": "After three seconds, a button linking to yellowweb.top appears over the video.",
+      "examples.external.status": "CTA · 3 sec",
       "examples.popup.title": "Open video over the page",
-      "examples.popup.text": "Use a popup when video should open from a button without taking space in the page layout. The player is preloaded and pauses when closed.",
+      "examples.popup.text": "Use a popup when video should open from a button without taking space in the page layout. Smart Progress remains available and closing the popup pauses playback.",
       "examples.popup.open": "Open popup player",
       "examples.events.kicker": "Events",
       "examples.events.title": "What you can track",
@@ -270,6 +294,7 @@ popup: false`
       "dynamic.backward": "Rewind to {actual}s allowed: this part has already been watched.",
       "player.hook": "The offer button will appear soon",
       "player.cta": "Open offer",
+      "player.yellowwebCta": "Open Yellow Web",
       "code.cta": `const player = YellowVSL.create("#vsl", {
   video: "https://youtu.be/VIDEO_ID",
   ctas: [{
@@ -282,6 +307,13 @@ popup: false`
     background: "#ff3b30",
     color: "#ffffff",
     persist: true
+  }, {
+    id: "external-offer",
+    start: 60,
+    text: "Visit website",
+    url: "https://example.com",
+    target: "_blank",
+    placement: "below"
   }],
   reveals: [{
     id: "auto-order-form",

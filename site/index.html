@@ -143,11 +143,37 @@
           <button id="fragment-start" class="button button--primary button--full" type="button" data-i18n="examples.fragment.start">Запустить фрагмент</button>
         </article>
 
+        <div class="example-pair">
+          <article class="example-card example-card--player">
+            <div class="example-head">
+              <div>
+                <span class="example-kicker" data-i18n="examples.fast.kicker">Кастомная матрица</span>
+                <h3 data-i18n="examples.fast.title">50% шкалы за первые 2–3 секунды</h3>
+                <p data-i18n="examples.fast.text">На отметке 0,1% реального просмотра шкала уже показывает 50%. После этого её заполнение резко замедляется.</p>
+              </div>
+              <span class="status-pill" data-i18n="examples.fast.status">0,1% → 50%</span>
+            </div>
+            <div id="fast-progress-player"></div>
+          </article>
+
+          <article class="example-card example-card--player">
+            <div class="example-head">
+              <div>
+                <span class="example-kicker" data-i18n="examples.external.kicker">Внешняя CTA</span>
+                <h3 data-i18n="examples.external.title">Кнопка открывает сайт в новой вкладке</h3>
+                <p data-i18n="examples.external.text">Через три секунды поверх видео появится кнопка, ведущая на yellowweb.top.</p>
+              </div>
+              <span class="status-pill" data-i18n="examples.external.status">CTA · 3 сек</span>
+            </div>
+            <div id="external-cta-player"></div>
+          </article>
+        </div>
+
         <article class="example-card example-card--popup">
           <div>
             <span class="example-kicker">Popup</span>
             <h3 data-i18n="examples.popup.title">Видео по кнопке поверх страницы</h3>
-            <p data-i18n="examples.popup.text">Popup нужен, когда видео должно открываться по кнопке и не занимать место в макете. Плеер загружается заранее; при закрытии видео ставится на паузу.</p>
+            <p data-i18n="examples.popup.text">Popup нужен, когда видео должно открываться по кнопке и не занимать место в макете. В нём работает Smart Progress; при закрытии видео ставится на паузу.</p>
           </div>
           <button id="open-popup" class="button button--primary" type="button" data-i18n="examples.popup.open">Открыть popup-плеер</button>
           <div id="popup-player"></div>

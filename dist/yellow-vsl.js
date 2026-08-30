@@ -1,4 +1,4 @@
-/*! YellowVSL v1.6.2 | MIT License | https://github.com/dvygolov/yellow-vsl */
+/*! YellowVSL v1.6.3 | MIT License | https://github.com/dvygolov/yellow-vsl */
 (() => {
   var __defProp = Object.defineProperty;
   var __export = (target, all) => {
@@ -1754,7 +1754,7 @@
   }
 
   // src/index.js
-  var version = "1.6.2";
+  var version = "1.6.3";
   var autoInstances = /* @__PURE__ */ new WeakMap();
   function create(target, options = {}) {
     return new YellowVSLPlayer(target, options);

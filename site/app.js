@@ -34,16 +34,46 @@ const fragmentPlayer = YellowVSL.create("#fragment-player", {
   locale
 });
 
+const fastProgressPlayer = YellowVSL.create("#fast-progress-player", {
+  video,
+  playback: { autoplay: false, resume: false },
+  progress: {
+    mode: "smart",
+    points: [[0, 0], [0.001, 0.5], [0.1, 0.58], [0.5, 0.8], [1, 1]]
+  },
+  controls: { speed: false },
+  theme: { accent: "#72e5ff", radius: "0px" },
+  locale
+});
+
+const externalCtaPlayer = YellowVSL.create("#external-cta-player", {
+  video,
+  playback: { autoplay: false, resume: false },
+  controls: { speed: false },
+  ctas: [{
+    id: "yellowweb-link",
+    start: 3,
+    text: t("player.yellowwebCta"),
+    url: "https://yellowweb.top",
+    target: "_blank",
+    placement: "bottom-right",
+    background: "#ffd400",
+    color: "#171400",
+    persist: false
+  }],
+  theme: { accent: "#ffd400", radius: "0px" },
+  locale
+});
+
 const popupPlayer = YellowVSL.create("#popup-player", {
   video,
   popup: { trigger: "#open-popup", preload: true },
   playback: { autoplay: false, resume: false },
-  progress: { mode: "hidden" },
   theme: { accent: "#ff7ad9" },
   locale
 });
 
-window.yellowVslSite = { heroPlayer, examplePlayer, fragmentPlayer, popupPlayer };
+window.yellowVslSite = { heroPlayer, examplePlayer, fragmentPlayer, fastProgressPlayer, externalCtaPlayer, popupPlayer };
 
 document.querySelector("#example-unmute").addEventListener("click", (event) => {
   examplePlayer.unmute(true);
@@ -67,6 +97,6 @@ document.querySelector("#docs-link").href = i18n.language === "en"
   ? "https://github.com/dvygolov/yellow-vsl/blob/main/README.en.md#configuration-reference"
   : "https://github.com/dvygolov/yellow-vsl#configuration-reference";
 
-Promise.allSettled([heroPlayer.ready, examplePlayer.ready, fragmentPlayer.ready, popupPlayer.ready]).then(() => {
+Promise.allSettled([heroPlayer.ready, examplePlayer.ready, fragmentPlayer.ready, fastProgressPlayer.ready, externalCtaPlayer.ready, popupPlayer.ready]).then(() => {
   document.documentElement.dataset.playersReady = "true";
 });

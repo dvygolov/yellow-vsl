@@ -1,6 +1,6 @@
 {
   "name": "yellow-vsl",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "description": "Бесплатный VSL-плеер для YouTube на чистом JavaScript",
   "type": "module",
   "license": "MIT",

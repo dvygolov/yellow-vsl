@@ -30,7 +30,7 @@ A free vanilla JavaScript VSL player backed by YouTube. YellowVSL adds Smart Aut
   data-video="https://youtu.be/M7lc1UVf-VE">
 </div>
 
-<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.6.2/dist/yellow-vsl.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.6.3/dist/yellow-vsl.min.js"></script>
 ```
 
 The defaults include:
@@ -69,7 +69,7 @@ Open `http://127.0.0.1:4173/demo/`. The demo covers Smart Autoplay, Smart Progre
   This block is revealed after the CTA is clicked.
 </section>
 
-<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.6.2/dist/yellow-vsl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.6.3/dist/yellow-vsl.min.js"></script>
 <script>
   const player = YellowVSL.create("#sales-video", {
     video: "https://www.youtube.com/watch?v=M7lc1UVf-VE",
