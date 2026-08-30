@@ -1,4 +1,4 @@
-/*! YellowVSL v1.6.1 | MIT License | https://github.com/dvygolov/yellow-vsl */
+/*! YellowVSL v1.6.2 | MIT License | https://github.com/dvygolov/yellow-vsl */
 (() => {
   var __defProp = Object.defineProperty;
   var __export = (target, all) => {
@@ -379,7 +379,7 @@
 .yvsl-poster { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; overflow: hidden; background: #000; pointer-events: none; }
 .yvsl-poster[hidden] { display: none; }
 .yvsl-poster__image { width: 100%; height: 100%; object-fit: cover; opacity: .78; }
-.yvsl-poster__play { position: absolute; display: grid; place-items: center; width: clamp(58px, 11%, 92px); aspect-ratio: 1; padding-left: .08em; color: #171400; background: var(--yvsl-accent); border-radius: 50%; box-shadow: 0 18px 45px rgba(0,0,0,.38); font-size: clamp(24px, 4vw, 38px); }
+.yvsl-poster__play { position: absolute; top: 50%; left: 50%; display: grid; place-items: center; width: clamp(58px, 11%, 92px); aspect-ratio: 1; padding-left: .08em; color: #171400; background: var(--yvsl-accent); border-radius: 50%; box-shadow: 0 18px 45px rgba(0,0,0,.38); font-size: clamp(24px, 4vw, 38px); transform: translate(-50%, -50%); }
 .yvsl-stage-overlay { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
 .yvsl-zone--corner { position: absolute; display: grid; gap: 8px; width: max-content; max-width: min(46%, 380px); pointer-events: none; }
 .yvsl-zone--corner:empty { display: none; }
@@ -446,7 +446,7 @@
   cursor: pointer;
 }
 .yvsl-btn:hover { background: rgba(255, 255, 255, .08); }
-.yvsl-play.yvsl-is-loading, .yvsl-poster__play.yvsl-is-loading { color: transparent; font-size: 0; padding-left: 0; }
+.yvsl-play.yvsl-is-loading, .yvsl-poster__play.yvsl-is-loading { color: transparent; font-size: 0; padding: 0; }
 .yvsl-play.yvsl-is-loading::after, .yvsl-poster__play.yvsl-is-loading::after {
   content: "";
   display: block;
@@ -810,6 +810,8 @@
       this.stageWarmupWasMuted = null;
       this.stageWarmupBypassNextPlay = false;
       this.stageWasRevealedBeforeBuffering = false;
+      this.playbackProbeTimer = null;
+      this.clockConfirmedPlaying = false;
       this.mutedIntent = null;
       this.fullscreenControlsTimer = null;
       this.adapterMountPromise = null;
@@ -1077,17 +1079,34 @@
     }
     _onStateChange(state) {
       if (this.destroyed) return;
+      const previousState = this.playerState;
+      const confirmedByClock = this.clockConfirmedPlaying;
       this.playerState = state;
       this.loading = state === YT_STATE.BUFFERING;
       if (state === YT_STATE.BUFFERING) {
+        this.clockConfirmedPlaying = false;
         this.stageWasRevealedBeforeBuffering = this.stageRevealed;
         this._stopTicker();
         this.timeline.resetClock();
+        this._startPlaybackProbe(previousState !== YT_STATE.PLAYING);
         this._applySticky();
         this._revealFullscreenControls(false);
         this._updateUi();
         return;
       }
+      this._stopPlaybackProbe();
+      if (state === YT_STATE.PLAYING && confirmedByClock && previousState === YT_STATE.PLAYING) {
+        this.clockConfirmedPlaying = false;
+        this.loading = false;
+        this.stageRevealed = true;
+        this.stageWasRevealedBeforeBuffering = false;
+        this._startTicker();
+        this._applySticky();
+        this._updateUi();
+        this._scheduleFullscreenControlsHide();
+        return;
+      }
+      this.clockConfirmedPlaying = false;
       if (state === YT_STATE.PLAYING) {
         this.hasStarted = true;
         if (this.stageWarmupBypassNextPlay) {
@@ -1149,6 +1168,7 @@
       this._showError(message, code);
     }
     _showError(message, code) {
+      this._stopPlaybackProbe();
       this.loading = false;
       this.dom.error.textContent = message;
       this.dom.error.hidden = false;
@@ -1163,6 +1183,53 @@
       if (!this.tickTimer) return;
       window.clearInterval(this.tickTimer);
       this.tickTimer = null;
+    }
+    _startPlaybackProbe(emitPlay = false) {
+      this._stopPlaybackProbe();
+      if (!this.adapter || !this.loading) return;
+      let lastTime = Number(this.adapter.getCurrentTime?.()) || 0;
+      let advancingSamples = 0;
+      const probe = () => {
+        this.playbackProbeTimer = null;
+        if (this.destroyed || !this.adapter || !this.loading) return;
+        const currentTime = Number(this.adapter.getCurrentTime?.()) || 0;
+        const delta = currentTime - lastTime;
+        if (delta > 0.015 && delta < 0.5) advancingSamples += 1;
+        else if (delta <= 0.015) advancingSamples = 0;
+        else advancingSamples = 0;
+        lastTime = currentTime;
+        if (advancingSamples >= 2) {
+          this._confirmPlaybackFromClock(emitPlay);
+          return;
+        }
+        this.playbackProbeTimer = window.setTimeout(probe, 80);
+      };
+      this.playbackProbeTimer = window.setTimeout(probe, 80);
+    }
+    _stopPlaybackProbe() {
+      if (this.playbackProbeTimer) window.clearTimeout(this.playbackProbeTimer);
+      this.playbackProbeTimer = null;
+    }
+    _confirmPlaybackFromClock(emitPlay) {
+      this._stopPlaybackProbe();
+      this.playerState = YT_STATE.PLAYING;
+      this.clockConfirmedPlaying = true;
+      this.loading = false;
+      this.hasStarted = true;
+      this.stageRevealed = true;
+      this.stageWasRevealedBeforeBuffering = false;
+      this.lastActiveAt = Date.now();
+      this.completed = false;
+      if (this.options.playback.singlePlayback) {
+        for (const instance of instances) {
+          if (instance !== this && instance.playerState === YT_STATE.PLAYING) instance.pause();
+        }
+      }
+      this._startTicker();
+      this._applySticky();
+      this._updateUi();
+      this._scheduleFullscreenControlsHide();
+      if (emitPlay) this._emit("play");
     }
     _tick() {
       if (this.destroyed || !this.adapter || !this.readyState) return;
@@ -1548,6 +1615,7 @@
             this.pendingPlay = false;
             this._syncMutedIntent();
             this.adapter?.play();
+            if (this.loading) this._startPlaybackProbe(true);
           }
         }).catch(() => {
           this.pendingPlay = false;
@@ -1557,10 +1625,12 @@
       this.pendingPlay = false;
       this._syncMutedIntent();
       this.adapter.play();
+      if (this.loading) this._startPlaybackProbe(this.playerState !== YT_STATE.PLAYING);
       return this;
     }
     pause() {
       this.pendingPlay = false;
+      this._stopPlaybackProbe();
       this.loading = false;
       this._updateUi();
       this.adapter?.pause();
@@ -1659,6 +1729,7 @@
       this._saveProgress();
       this.destroyed = true;
       this._stopTicker();
+      this._stopPlaybackProbe();
       this._clearFullscreenControlsTimer();
       this._cancelStageWarmup();
       this.stickyObserver?.disconnect();
@@ -1683,7 +1754,7 @@
   }
 
   // src/index.js
-  var version = "1.6.1";
+  var version = "1.6.2";
   var autoInstances = /* @__PURE__ */ new WeakMap();
   function create(target, options = {}) {
     return new YellowVSLPlayer(target, options);

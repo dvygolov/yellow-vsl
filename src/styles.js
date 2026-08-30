@@ -37,7 +37,7 @@ export const STYLES = `
 .yvsl-poster { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; overflow: hidden; background: #000; pointer-events: none; }
 .yvsl-poster[hidden] { display: none; }
 .yvsl-poster__image { width: 100%; height: 100%; object-fit: cover; opacity: .78; }
-.yvsl-poster__play { position: absolute; display: grid; place-items: center; width: clamp(58px, 11%, 92px); aspect-ratio: 1; padding-left: .08em; color: #171400; background: var(--yvsl-accent); border-radius: 50%; box-shadow: 0 18px 45px rgba(0,0,0,.38); font-size: clamp(24px, 4vw, 38px); }
+.yvsl-poster__play { position: absolute; top: 50%; left: 50%; display: grid; place-items: center; width: clamp(58px, 11%, 92px); aspect-ratio: 1; padding-left: .08em; color: #171400; background: var(--yvsl-accent); border-radius: 50%; box-shadow: 0 18px 45px rgba(0,0,0,.38); font-size: clamp(24px, 4vw, 38px); transform: translate(-50%, -50%); }
 .yvsl-stage-overlay { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
 .yvsl-zone--corner { position: absolute; display: grid; gap: 8px; width: max-content; max-width: min(46%, 380px); pointer-events: none; }
 .yvsl-zone--corner:empty { display: none; }
@@ -104,7 +104,7 @@ export const STYLES = `
   cursor: pointer;
 }
 .yvsl-btn:hover { background: rgba(255, 255, 255, .08); }
-.yvsl-play.yvsl-is-loading, .yvsl-poster__play.yvsl-is-loading { color: transparent; font-size: 0; padding-left: 0; }
+.yvsl-play.yvsl-is-loading, .yvsl-poster__play.yvsl-is-loading { color: transparent; font-size: 0; padding: 0; }
 .yvsl-play.yvsl-is-loading::after, .yvsl-poster__play.yvsl-is-loading::after {
   content: "";
   display: block;

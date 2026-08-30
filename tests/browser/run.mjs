@@ -303,8 +303,43 @@ try {
     await page.click("#open-popup");
     assert.equal(await page.locator(".yvsl-popup-backdrop").isVisible(), true, `${name}: popup opens`);
     assert.notEqual(await page.evaluate(() => window.secondPlayer.getState().playerState), 1, `${name}: popup pauses other players`);
-    await page.click(".yvsl-popup-panel .yvsl-play");
+    const popupLoading = await page.evaluate(() => {
+      const player = window.popupPlayer;
+      player.adapter.play = () => {
+        player._onStateChange(3);
+        window.setTimeout(() => { player.adapter.player.time += 0.12; }, 70);
+        window.setTimeout(() => { player.adapter.player.time += 0.12; }, 150);
+      };
+      player.dom.play.click();
+      const controlStyle = getComputedStyle(player.dom.play);
+      const posterStyle = getComputedStyle(player.dom.posterPlay);
+      const stageRect = player.dom.stage.getBoundingClientRect();
+      const posterRect = player.dom.posterPlay.getBoundingClientRect();
+      return {
+        controlLoading: player.dom.play.classList.contains("yvsl-is-loading"),
+        posterLoading: player.dom.posterPlay.classList.contains("yvsl-is-loading"),
+        controlPaddingLeft: controlStyle.paddingLeft,
+        controlPaddingRight: controlStyle.paddingRight,
+        controlJustify: controlStyle.justifyContent,
+        controlAlign: controlStyle.alignItems,
+        posterTransform: posterStyle.transform,
+        posterCenterDeltaX: Math.abs((posterRect.left + posterRect.width / 2) - (stageRect.left + stageRect.width / 2)),
+        posterCenterDeltaY: Math.abs((posterRect.top + posterRect.height / 2) - (stageRect.top + stageRect.height / 2))
+      };
+    });
+    assert.equal(popupLoading.controlLoading, true, `${name}: popup control shows loading while YouTube buffers`);
+    assert.equal(popupLoading.posterLoading, true, `${name}: popup poster shows loading while YouTube buffers`);
+    assert.equal(popupLoading.controlPaddingLeft, "0px", `${name}: loading control has symmetric left padding`);
+    assert.equal(popupLoading.controlPaddingRight, "0px", `${name}: loading control has symmetric right padding`);
+    assert.equal(popupLoading.controlJustify, "center", `${name}: loading control is horizontally centered`);
+    assert.equal(popupLoading.controlAlign, "center", `${name}: loading control is vertically centered`);
+    assert.ok(popupLoading.posterCenterDeltaX <= 1, `${name}: poster loader is horizontally centered`);
+    assert.ok(popupLoading.posterCenterDeltaY <= 1, `${name}: poster loader is vertically centered`);
+    assert.match(popupLoading.posterTransform, /matrix\(1, 0, 0, 1, -/i, `${name}: poster loader offsets itself by half its size`);
     await page.waitForFunction(() => window.popupPlayer.getState().playerState === 1);
+    assert.equal(await page.locator(".yvsl-popup-panel .yvsl-play").evaluate((node) => node.classList.contains("yvsl-is-loading")), false, `${name}: popup control stops loading when media time advances`);
+    assert.equal(await page.locator(".yvsl-popup-panel .yvsl-poster").isHidden(), true, `${name}: popup poster hides when audio and media time start`);
+    assert.match(await page.locator(".yvsl-popup-panel .yvsl-play").getAttribute("aria-label"), /пауз/i, `${name}: popup control switches to pause when media time advances`);
     assert.equal(await page.evaluate(() => window.popupPlayer.getState().ready), true, `${name}: popup mounts YouTube while visible`);
     await page.click(".yvsl-popup-close");
     assert.equal(await page.locator(".yvsl-popup-backdrop").isVisible(), false, `${name}: popup closes`);
