@@ -14,6 +14,8 @@ export const DEFAULT_LOCALE = Object.freeze({
   restart: "Начать сначала",
   autoplayBlocked: "Нажмите, чтобы запустить видео",
   loading: "Загрузка видео",
+  captionsEnable: "Включить субтитры",
+  captionsDisable: "Выключить субтитры",
   close: "Закрыть",
   speed: "Скорость",
   genericError: "Не удалось загрузить видео",
@@ -42,7 +44,12 @@ export const DEFAULT_OPTIONS = Object.freeze({
     volume: true,
     fullscreen: true,
     progress: true,
+    captions: true,
     speed: false
+  }),
+  captions: Object.freeze({
+    enabled: "auto",
+    language: null
   }),
   stage: Object.freeze({
     poster: "auto",
@@ -90,6 +97,12 @@ export function normalizeOptions(options = {}) {
   const controls = { ...DEFAULT_OPTIONS.controls, ...(options.controls || {}) };
   if (progress.mode === "hidden") controls.progress = false;
 
+  const captions = { ...DEFAULT_OPTIONS.captions, ...(options.captions || {}) };
+  captions.enabled = [true, false, "auto"].includes(captions.enabled) ? captions.enabled : "auto";
+  captions.language = typeof captions.language === "string" && captions.language.trim()
+    ? captions.language.trim().toLowerCase()
+    : null;
+
   const stage = { ...DEFAULT_OPTIONS.stage, ...(options.stage || {}) };
   stage.poster = stage.poster === false ? false : (typeof stage.poster === "string" ? stage.poster : "auto");
   stage.clickToToggle = stage.clickToToggle !== false;
@@ -102,6 +115,7 @@ export function normalizeOptions(options = {}) {
     playback,
     progress,
     controls,
+    captions,
     stage,
     aspectRatio: options.aspectRatio || DEFAULT_OPTIONS.aspectRatio,
     aspectRatioValue: parseAspectRatio(options.aspectRatio || DEFAULT_OPTIONS.aspectRatio),
@@ -127,6 +141,7 @@ export function optionsFromDataset(element) {
   const playback = {};
   const progress = {};
   const stage = {};
+  const captions = {};
 
   if (dataset.autoplay === "false") playback.autoplay = false;
   if (dataset.resume === "false") playback.resume = false;
@@ -138,6 +153,10 @@ export function optionsFromDataset(element) {
   if (dataset.noSeek === "false") playback.noSeek = false;
   if (dataset.progress) progress.mode = dataset.progress;
   if (dataset.revealDelay != null) stage.revealDelay = Number(dataset.revealDelay);
+  if (dataset.captions === "true") captions.enabled = true;
+  if (dataset.captions === "false") captions.enabled = false;
+  if (dataset.captions === "auto") captions.enabled = "auto";
+  if (dataset.captionsLanguage) captions.language = dataset.captionsLanguage;
 
   return {
     video: dataset.video,
@@ -145,6 +164,7 @@ export function optionsFromDataset(element) {
     playback,
     progress,
     stage,
+    captions,
     sticky: dataset.sticky === "true",
     popup: dataset.popupTrigger ? { trigger: dataset.popupTrigger } : false
   };

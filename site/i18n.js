@@ -93,6 +93,7 @@
       "examples.events.play": "Запуск и пауза",
       "examples.events.progress": "Прогресс просмотра и продолжение",
       "examples.events.cta": "Показ и клик по CTA",
+      "examples.events.captions": "Включение и выключение субтитров",
       "examples.events.complete": "Завершение просмотра и ошибки",
       "install.eyebrow": "Установка и настройка",
       "install.title": "Вставьте URL видео и один script",
@@ -113,8 +114,11 @@
       "install.modes.kicker": "Режимы плеера",
       "install.modes.title": "Матрица Progress, popup и sticky",
       "install.modes.text": "Точки Smart Progress можно задавать дробями 0..1 или обычными процентами 0..100. Дефолтная кривая остаётся встроенной.",
+      "install.captions.kicker": "Субтитры",
+      "install.captions.title": "Родные дорожки YouTube",
+      "install.captions.text": "Видимость кнопки и состояние независимы: можно включить нужную дорожку и скрыть CC от посетителя.",
       "install.docs.title": "Все параметры собраны на GitHub",
-      "install.docs.text": "README содержит таблицы playback, progress, controls, stage, CTA, hooks, reveals, theme, методов и событий.",
+      "install.docs.text": "README содержит таблицы playback, progress, captions, controls, stage, CTA, hooks, reveals, theme, методов и событий.",
       "install.docs.button": "Открыть полную документацию",
       "download.eyebrow": "Последний стабильный релиз",
       "download.title": "Скачайте файл или подключите CDN",
@@ -175,7 +179,14 @@
 },
 controls: { speed: true },
 sticky: { position: "bottom-right", width: "420px" },
-popup: false`
+popup: false`,
+      "code.captions": `controls: {
+  captions: false // не показывать кнопку CC
+},
+captions: {
+  enabled: true,
+  language: "ru"
+}`
     },
     en: {
       "meta.title": "YellowVSL - free YouTube VSL player",
@@ -256,6 +267,7 @@ popup: false`
       "examples.events.play": "Play and pause",
       "examples.events.progress": "Watch progress and resume",
       "examples.events.cta": "CTA impression and click",
+      "examples.events.captions": "Captions enabled and disabled",
       "examples.events.complete": "Completion and errors",
       "install.eyebrow": "Setup and configuration",
       "install.title": "Paste a video URL and one script",
@@ -276,8 +288,11 @@ popup: false`
       "install.modes.kicker": "Player modes",
       "install.modes.title": "Progress matrix, popup and sticky",
       "install.modes.text": "Smart Progress points accept 0..1 fractions or regular 0..100 percentages. The built-in default curve stays unchanged.",
+      "install.captions.kicker": "Captions",
+      "install.captions.title": "Native YouTube caption tracks",
+      "install.captions.text": "Button visibility and caption state are independent: enable a track while hiding CC from the visitor.",
       "install.docs.title": "Every option is documented on GitHub",
-      "install.docs.text": "The README covers playback, progress, controls, stage, CTA, hooks, reveals, theme, methods and browser events.",
+      "install.docs.text": "The README covers playback, progress, captions, controls, stage, CTA, hooks, reveals, theme, methods and browser events.",
       "install.docs.button": "Open full documentation",
       "download.eyebrow": "Latest stable release",
       "download.title": "Download the file or use the CDN",
@@ -338,7 +353,14 @@ popup: false`
 },
 controls: { speed: true },
 sticky: { position: "bottom-right", width: "420px" },
-popup: false`
+popup: false`,
+      "code.captions": `controls: {
+  captions: false // hide the CC button
+},
+captions: {
+  enabled: true,
+  language: "en"
+}`
     }
   };
 
@@ -356,6 +378,8 @@ popup: false`
     restart: "Start over",
     autoplayBlocked: "Click to play the video",
     loading: "Loading video",
+    captionsEnable: "Enable captions",
+    captionsDisable: "Disable captions",
     close: "Close",
     speed: "Speed",
     genericError: "The video could not be loaded",

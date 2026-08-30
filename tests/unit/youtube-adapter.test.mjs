@@ -48,17 +48,33 @@ test("YouTubeAdapter проксирует официальный IFrame API", as
     setPlaybackRate(value) { this.rate = value; config.events.onPlaybackRateChange({ data: value }); }
     getPlaybackRate() { return this.rate; }
     getAvailablePlaybackRates() { return [0.5, 1, 1.5]; }
+    getOptions(module) { return module === "captions" ? ["track", "tracklist"] : ["captions"]; }
+    getOption(module, option) {
+      if (module !== "captions") return null;
+      if (option === "track") return this.captionTrack || {};
+      if (option === "tracklist") return [{ languageCode: "en" }, { languageCode: "ru" }];
+      return null;
+    }
+    setOption(module, option, value) {
+      if (module === "captions" && option === "track") this.captionTrack = value;
+      if (module === "captions" && option === "reload") this.captionsReloaded = value;
+    }
     destroy() { this.destroyed = true; }
   }
   const states = [];
   const rates = [];
+  const apiChanges = [];
   const fakeWindow = { YT: { Player: FakePlayer }, document: {} };
   const adapter = new YouTubeAdapter({
     element: {},
     videoId: "M7lc1UVf-VE",
     playerVars: { controls: 0 },
     win: fakeWindow,
-    events: { stateChange: (state) => states.push(state), rateChange: (rate) => rates.push(rate) }
+    events: {
+      stateChange: (state) => states.push(state),
+      rateChange: (rate) => rates.push(rate),
+      apiChange: () => apiChanges.push("captions")
+    }
   });
   await adapter.mount();
   adapter.play();
@@ -68,6 +84,15 @@ test("YouTubeAdapter проксирует официальный IFrame API", as
   assert.deepEqual(states, [1, 2]);
   assert.deepEqual(rates, [1.5]);
   assert.equal(adapter.getCurrentTime(), 9);
+  assert.deepEqual(adapter.getCaptionTracks(), [{ languageCode: "en" }, { languageCode: "ru" }]);
+  adapter.setCaptionTrack({ languageCode: "ru" });
+  assert.deepEqual(adapter.getCaptionTrack(), { languageCode: "ru" });
+  adapter.setCaptionTrack(null);
+  assert.deepEqual(adapter.getCaptionTrack(), {});
+  adapter.reloadCaptions();
+  assert.equal(adapter.player.captionsReloaded, true);
+  config.events.onApiChange({ target: adapter.player });
+  assert.deepEqual(apiChanges, ["captions"]);
   assert.equal(config.videoId, "M7lc1UVf-VE");
   assert.equal(config.playerVars.controls, 0);
   adapter.destroy();

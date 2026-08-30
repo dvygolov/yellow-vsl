@@ -32,6 +32,24 @@ try {
     assert.equal(await page.locator("#main .yvsl-poster").isHidden(), true, `${name}: poster hidden while playing`);
     assert.equal(await page.locator("#main [data-fake-youtube]").evaluate((node) => getComputedStyle(node).pointerEvents), "none", `${name}: YouTube surface ignores hover`);
 
+    const captionsToggle = await page.evaluate(() => {
+      const player = window.mainPlayer;
+      const before = player.getState();
+      player.dom.captions.click();
+      const enabled = player.getState();
+      const selectedTrack = player.adapter.player.captionTrack;
+      player.dom.captions.click();
+      const disabled = player.getState();
+      return { before, enabled, selectedTrack, disabled };
+    });
+    assert.equal(await page.locator("#main .yvsl-captions").isVisible(), true, `${name}: captions button appears when tracks exist`);
+    assert.equal(captionsToggle.before.captions, false, `${name}: captions start disabled in the fake player`);
+    assert.equal(captionsToggle.enabled.captions, true, `${name}: captions button enables captions`);
+    assert.equal(captionsToggle.enabled.playerState, captionsToggle.before.playerState, `${name}: enabling captions does not change play/pause`);
+    assert.equal(captionsToggle.selectedTrack.languageCode, "en", `${name}: captions button selects the first available track`);
+    assert.equal(captionsToggle.disabled.captions, false, `${name}: second captions click disables captions`);
+    assert.equal(captionsToggle.disabled.playerState, captionsToggle.before.playerState, `${name}: disabling captions does not change play/pause`);
+
     const volumeToggle = await page.evaluate(() => {
       const player = window.mainPlayer;
       player.unmute(false);
@@ -251,6 +269,8 @@ try {
       window.advancedPlayer = window.YellowVSL.create("#advanced", {
         video: "M7lc1UVf-VE",
         playback: { autoplay: false },
+        controls: { captions: false },
+        captions: { enabled: true, language: "ru" },
         stage: { revealDelay: 0 },
         hooks: [{ start: 0.2, end: 2, text: "Hook", placement: "above" }],
         ctas: [{ id: "offer", start: 0.5, text: "CTA", reveal: "#offer", placement: "bottom-right", background: "#123456", color: "#ffffff", persist: true }],
@@ -261,6 +281,10 @@ try {
       return window.advancedPlayer.getState();
     });
     assert.equal(advanced.ready, true, `${name}: advanced ready`);
+    assert.equal(advanced.captions, true, `${name}: captions can start enabled`);
+    assert.equal(advanced.captionLanguage, "ru", `${name}: configured caption language is selected`);
+    assert.equal(await page.locator("#advanced .yvsl-captions").isHidden(), true, `${name}: captions can stay enabled with no CC button`);
+    assert.equal(await page.evaluate(() => window.advancedPlayer.adapter.player.captionTrack.languageCode), "ru", `${name}: hidden control still selects the caption track`);
     await page.waitForFunction(() => window.advancedPlayer.getState().currentTime > 0.9);
     assert.equal(await page.locator("#advanced .yvsl-hook").isVisible(), true, `${name}: hook timing`);
     assert.equal(await page.locator("#advanced .yvsl-cta").isVisible(), true, `${name}: CTA timing`);

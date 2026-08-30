@@ -58,6 +58,12 @@ export class YellowVSLPlayer {
     this.playbackProbeTimer = null;
     this.clockConfirmedPlaying = false;
     this.mutedIntent = null;
+    this.captionTracks = [];
+    this.captionsEnabled = false;
+    this.captionLanguage = null;
+    this.captionsInitialized = false;
+    this.captionIntent = null;
+    this.captionProbeTimer = null;
     this.fullscreenControlsTimer = null;
     this.adapterMountPromise = null;
     this.pendingPlay = false;
@@ -119,6 +125,8 @@ export class YellowVSLPlayer {
         start: Math.floor(this.options.playback.start)
       };
       if (this.options.playback.end != null) playerVars.end = Math.floor(this.options.playback.end);
+      if (this.options.captions.enabled === true) playerVars.cc_load_policy = 1;
+      if (this.options.captions.language) playerVars.cc_lang_pref = this.options.captions.language;
       if (origin) playerVars.origin = origin;
 
       const adapterFactory = this.dependencies.adapterFactory || ((config) => new YouTubeAdapter(config));
@@ -130,6 +138,7 @@ export class YellowVSLPlayer {
           ready: () => this._onReady(),
           stateChange: (state) => this._onStateChange(state),
           rateChange: (rate) => this._onRateChange(rate),
+          apiChange: () => this._onApiChange(),
           error: (code) => this._onPlayerError(code)
         }
       });
@@ -177,6 +186,9 @@ export class YellowVSLPlayer {
     const controls = element("div", "yvsl-controls");
     const play = this._button("▶", locale.play, "yvsl-play");
     const volume = this._button("🔇", locale.unmute, "yvsl-volume");
+    const captions = this._button("CC", locale.captionsEnable, "yvsl-captions");
+    captions.hidden = true;
+    captions.setAttribute("aria-pressed", "false");
     const progress = element("input", "yvsl-progress", {
       type: "range",
       min: 0,
@@ -196,15 +208,16 @@ export class YellowVSLPlayer {
     if (!this.options.controls.progress) progress.hidden = true;
     if (!this.options.controls.fullscreen || !root.requestFullscreen) fullscreen.hidden = true;
 
-    controls.append(play, volume, progress, time, speed, fullscreen);
+    controls.append(play, volume, captions, progress, time, speed, fullscreen);
     const below = element("div", "yvsl-zone yvsl-zone--below");
     root.append(stickyClose, above, message, stage, error, controls, below);
     this.mount.replaceChildren(sentinel, root);
 
-    this.dom = { root, sentinel, above, message, stage, playerHost, stageInteraction, poster, posterImage, posterPlay, stageOverlay, topLeft, topRight, bottomLeft, bottomRight, error, controls, play, volume, progress, time, speed, fullscreen, stickyClose, below };
+    this.dom = { root, sentinel, above, message, stage, playerHost, stageInteraction, poster, posterImage, posterPlay, stageOverlay, topLeft, topRight, bottomLeft, bottomRight, error, controls, play, volume, captions, progress, time, speed, fullscreen, stickyClose, below };
 
     this._listen(play, "click", () => this.playerState === YT_STATE.PLAYING ? this.pause() : this.play());
     this._listen(volume, "click", () => this._isMuted() ? this.unmute() : this.mute());
+    this._listen(captions, "click", () => this.toggleCaptions());
     this._listen(progress, "input", () => this._seekFromProgress());
     this._listen(speed, "change", () => this._setRate(Number(speed.value)));
     this._listen(fullscreen, "click", () => this._toggleFullscreen());
@@ -266,6 +279,7 @@ export class YellowVSLPlayer {
     this._refreshDuration();
     this._populateRates();
     this._setRate(this.options.playback.rate);
+    this._startCaptionProbe();
     this._updateUi();
     this._emit("ready");
     this._emit("view");
@@ -356,6 +370,7 @@ export class YellowVSLPlayer {
     const previousState = this.playerState;
     const confirmedByClock = this.clockConfirmedPlaying;
     this.playerState = state;
+    if (state === YT_STATE.BUFFERING || state === YT_STATE.PLAYING) this._startCaptionProbe();
     this.loading = state === YT_STATE.BUFFERING;
     if (state === YT_STATE.BUFFERING) {
       this.clockConfirmedPlaying = false;
@@ -431,6 +446,96 @@ export class YellowVSLPlayer {
     this.playerState === YT_STATE.PLAYING ? this.pause() : this.play();
   }
 
+  _onApiChange() {
+    if (this.destroyed || !this.adapter) return;
+    const tracks = this.adapter.getCaptionTracks?.() || [];
+    const captionTracks = tracks.filter((track) => track && typeof track.languageCode === "string");
+    if (!captionTracks.length) {
+      this.captionsEnabled = false;
+      this.dom.captions.hidden = true;
+      this._updateCaptionButton();
+      return;
+    }
+
+    this._applyCaptionTracks(captionTracks);
+    for (const instance of instances) {
+      if (
+        instance !== this
+        && !instance.destroyed
+        && instance.videoId === this.videoId
+        && instance.adapter
+        && !instance.captionTracks.length
+      ) {
+        instance._applyCaptionTracks(captionTracks);
+      }
+    }
+  }
+
+  _applyCaptionTracks(tracks) {
+    this.captionTracks = tracks;
+    this._stopCaptionProbe();
+
+    if (!this.captionsInitialized) {
+      const activeTrack = this.adapter.getCaptionTrack?.() || {};
+      const activeLanguage = typeof activeTrack.languageCode === "string" ? activeTrack.languageCode : null;
+      this.captionsEnabled = Boolean(activeLanguage);
+      this.captionsInitialized = true;
+
+      const desiredState = this.captionIntent ?? this.options.captions.enabled;
+      if (desiredState === true) {
+        this.captionLanguage = this.options.captions.language || this.captionLanguage || activeLanguage || this.captionTracks[0].languageCode;
+        this.enableCaptions(this.captionLanguage);
+      } else if (desiredState === false) {
+        this.captionLanguage = this.options.captions.language || this.captionLanguage || activeLanguage || this.captionTracks[0].languageCode;
+        this.disableCaptions();
+      } else {
+        this.captionLanguage = activeLanguage || this.options.captions.language || this.captionTracks[0].languageCode;
+      }
+    }
+
+    this.dom.captions.hidden = !this.options.controls.captions;
+    this._updateCaptionButton();
+  }
+
+  _startCaptionProbe() {
+    if (this.destroyed || this.captionTracks.length || this.captionProbeTimer) return;
+    let attempts = 0;
+    const probe = () => {
+      this.captionProbeTimer = null;
+      if (this.destroyed || this.captionTracks.length) return;
+      attempts += 1;
+      if (attempts === 1 || attempts === 8) this.adapter?.reloadCaptions?.();
+      this._onApiChange();
+      if (!this.captionTracks.length && attempts < 20) {
+        this.captionProbeTimer = window.setTimeout(probe, 250);
+      }
+    };
+    this.captionProbeTimer = window.setTimeout(probe, 0);
+  }
+
+  _stopCaptionProbe() {
+    if (!this.captionProbeTimer) return;
+    window.clearTimeout(this.captionProbeTimer);
+    this.captionProbeTimer = null;
+  }
+
+  _captionTrack(language = null) {
+    const requested = language || this.options.captions.language || this.captionLanguage;
+    const normalized = typeof requested === "string" ? requested.toLowerCase() : null;
+    return this.captionTracks.find((track) => track.languageCode.toLowerCase() === normalized)
+      || this.captionTracks.find((track) => track.languageCode.toLowerCase().split("-")[0] === normalized?.split("-")[0])
+      || this.captionTracks[0]
+      || null;
+  }
+
+  _updateCaptionButton() {
+    if (!this.dom?.captions) return;
+    const label = this.captionsEnabled ? this.options.locale.captionsDisable : this.options.locale.captionsEnable;
+    this.dom.captions.title = label;
+    this.dom.captions.setAttribute("aria-label", label);
+    this.dom.captions.setAttribute("aria-pressed", String(this.captionsEnabled));
+  }
+
   _onRateChange(rate) {
     this.timeline.rate = Number(rate) || 1;
     if (this.dom.speed) this.dom.speed.value = String(this.timeline.rate);
@@ -447,6 +552,7 @@ export class YellowVSLPlayer {
 
   _showError(message, code) {
     this._stopPlaybackProbe();
+    this._stopCaptionProbe();
     this.loading = false;
     this.dom.error.textContent = message;
     this.dom.error.hidden = false;
@@ -587,6 +693,7 @@ export class YellowVSLPlayer {
     this.dom.volume.textContent = muted ? "🔇" : "🔊";
     this.dom.volume.title = muted ? this.options.locale.unmute : this.options.locale.mute;
     this.dom.volume.setAttribute("aria-label", this.dom.volume.title);
+    this._updateCaptionButton();
 
     const duration = this.timeline.duration || 0;
     const realFraction = duration ? clamp(this.timeline.current / duration, 0, 1) : 0;
@@ -971,6 +1078,32 @@ export class YellowVSLPlayer {
     return this;
   }
 
+  enableCaptions(language = null) {
+    this.captionIntent = true;
+    if (typeof language === "string" && language.trim()) this.captionLanguage = language.trim().toLowerCase();
+    const track = this._captionTrack(language);
+    if (!track || !this.adapter) return this;
+    this.adapter.setCaptionTrack?.({ languageCode: track.languageCode });
+    this.captionLanguage = track.languageCode;
+    this.captionsEnabled = true;
+    this._updateCaptionButton();
+    this._emit("captions", { enabled: true, language: this.captionLanguage });
+    return this;
+  }
+
+  disableCaptions() {
+    this.captionIntent = false;
+    this.adapter?.setCaptionTrack?.(null);
+    this.captionsEnabled = false;
+    this._updateCaptionButton();
+    this._emit("captions", { enabled: false, language: this.captionLanguage });
+    return this;
+  }
+
+  toggleCaptions() {
+    return this.captionsEnabled ? this.disableCaptions() : this.enableCaptions();
+  }
+
   mute() {
     this.mutedIntent = true;
     this.adapter?.mute();
@@ -1061,6 +1194,8 @@ export class YellowVSLPlayer {
       duration: this.timeline.duration,
       maxWatched: this.timeline.maxWatched,
       muted: this._isMuted(),
+      captions: this.captionsEnabled,
+      captionLanguage: this.captionLanguage,
       rate: this.timeline.rate,
       popupOpen: this.popupOpen,
       sticky: this.dom.root.classList.contains("yvsl-root--sticky")
@@ -1073,6 +1208,7 @@ export class YellowVSLPlayer {
     this.destroyed = true;
     this._stopTicker();
     this._stopPlaybackProbe();
+    this._stopCaptionProbe();
     this._clearFullscreenControlsTimer();
     this._cancelStageWarmup();
     this.stickyObserver?.disconnect();

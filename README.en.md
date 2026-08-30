@@ -30,7 +30,7 @@ A free vanilla JavaScript VSL player backed by YouTube. YellowVSL adds Smart Aut
   data-video="https://youtu.be/M7lc1UVf-VE">
 </div>
 
-<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.6.3/dist/yellow-vsl.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.7.0/dist/yellow-vsl.min.js"></script>
 ```
 
 The defaults include:
@@ -69,7 +69,7 @@ Open `http://127.0.0.1:4173/demo/`. The demo covers Smart Autoplay, Smart Progre
   This block is revealed after the CTA is clicked.
 </section>
 
-<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.6.3/dist/yellow-vsl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.7.0/dist/yellow-vsl.min.js"></script>
 <script>
   const player = YellowVSL.create("#sales-video", {
     video: "https://www.youtube.com/watch?v=M7lc1UVf-VE",
@@ -92,7 +92,12 @@ Open `http://127.0.0.1:4173/demo/`. The demo covers Smart Autoplay, Smart Progre
       volume: true,
       fullscreen: true,
       progress: true,
+      captions: true,
       speed: false
+    },
+    captions: {
+      enabled: "auto",
+      language: "en"
     },
     hooks: [{
       id: "wait",
@@ -128,7 +133,8 @@ All `start`, `end`, CTA, hook and reveal times are relative to the beginning of 
 | `video` | YouTube URL or ID | required | Video to load |
 | `playback` | object | see the next table | Autoplay, clip range, loop, speed and seeking |
 | `progress` | object | Smart Progress | Progress mode and curve |
-| `controls` | object | play, volume, progress, fullscreen | Bottom control bar |
+| `controls` | object | play, volume, captions, progress, fullscreen | Bottom control bar |
+| `captions` | object | `enabled: "auto"`, `language: null` | Initial state and language for native YouTube captions |
 | `stage` | object | custom poster and click layer | Video stage behavior |
 | `aspectRatio` | `"16/9"`, `"9/16"` or another ratio | `"16/9"` | Container shape; use a vertical source video for 9:16 |
 | `ctas` | array | `[]` | Timed CTA buttons |
@@ -201,7 +207,27 @@ All control values are boolean.
 | `volume` | `true` | Sound |
 | `fullscreen` | `true` | Fullscreen |
 | `progress` | `true` | Progress bar |
+| `captions` | `true` | CC button; hidden automatically when YouTube returns no tracks |
 | `speed` | `false` | Playback-rate selector |
+
+### `captions`
+
+| Option | Values | Default | Purpose |
+| --- | --- | --- | --- |
+| `enabled` | `"auto"`, `true`, `false` | `"auto"` | Preserve YouTube preference, enable captions, or disable them after tracks load |
+| `language` | language code, `null` | `null` | Preferred language such as `"en"` or `"ru"`; falls back to the first track |
+
+Button visibility and caption state are independent. To force English captions while preventing visitors from disabling them in the player controls:
+
+```js
+controls: { captions: false },
+captions: {
+  enabled: true,
+  language: "en"
+}
+```
+
+The CC button appears only after YouTube reports at least one caption track. It never changes play, pause, or the current position.
 
 ### `stage`
 
@@ -312,7 +338,7 @@ Fullscreen controls hide automatically after 2.4 seconds of playback. Tapping th
 | `radius` | `--yvsl-radius` |
 | `shadow` | `--yvsl-shadow` |
 
-Overridable `locale` strings: `play`, `pause`, `mute`, `unmute`, `unmutePrompt`, `fullscreen`, `exitFullscreen`, `progress`, `continueTitle`, `continue`, `restart`, `autoplayBlocked`, `loading`, `close`, `speed`, `genericError`, `identityError`, `embedError`, `unavailableError`.
+Overridable `locale` strings: `play`, `pause`, `mute`, `unmute`, `unmutePrompt`, `captionsEnable`, `captionsDisable`, `fullscreen`, `exitFullscreen`, `progress`, `continueTitle`, `continue`, `restart`, `autoplayBlocked`, `loading`, `close`, `speed`, `genericError`, `identityError`, `embedError`, `unavailableError`.
 
 ## Declarative attributes
 
@@ -329,6 +355,8 @@ Overridable `locale` strings: `play`, `pause`, `mute`, `unmute`, `unmutePrompt`,
 | `data-aspect-ratio` | `9/16` | Player shape |
 | `data-sticky` | `true` | Enable sticky mode |
 | `data-popup-trigger` | `#open-video` | Popup trigger selector |
+| `data-captions` | `auto`, `true`, `false` | Initial caption state |
+| `data-captions-language` | `en` | Preferred caption language |
 | `data-reveal-delay` | `200` | Poster reveal delay in milliseconds |
 
 ## API
@@ -341,6 +369,9 @@ player.play();
 player.pause();
 player.mute();
 player.unmute(true); // enable sound and seek to the beginning; play/pause stays unchanged
+player.enableCaptions("en");
+player.disableCaptions();
+player.toggleCaptions();
 player.seek(20);     // forward seek is limited by maxWatched
 player.open();
 player.close();
@@ -360,7 +391,7 @@ document.addEventListener("yellowvsl:cta-click", (event) => {
 });
 ```
 
-Available events: `yellowvsl:ready`, `view`, `play`, `pause`, `progress`, `resume`, `complete`, `cta-show`, `cta-click`, `error`.
+Available events: `yellowvsl:ready`, `view`, `play`, `pause`, `progress`, `resume`, `complete`, `cta-show`, `cta-click`, `captions`, `error`.
 
 ## Development
 

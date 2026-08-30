@@ -30,7 +30,7 @@ If you like this script, PLEASE DONATE!
   data-video="https://youtu.be/M7lc1UVf-VE">
 </div>
 
-<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.6.3/dist/yellow-vsl.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.7.0/dist/yellow-vsl.min.js"></script>
 ```
 
 По умолчанию включены:
@@ -71,7 +71,7 @@ npm run demo
   Этот блок откроется после клика по CTA.
 </section>
 
-<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.6.3/dist/yellow-vsl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.7.0/dist/yellow-vsl.min.js"></script>
 <script>
   const player = YellowVSL.create("#sales-video", {
     video: "https://www.youtube.com/watch?v=M7lc1UVf-VE",
@@ -94,7 +94,12 @@ npm run demo
       volume: true,
       fullscreen: true,
       progress: true,
+      captions: true,
       speed: false
+    },
+    captions: {
+      enabled: "auto",
+      language: "ru"
     },
     hooks: [
       { id: "wait", start: 10, end: 20, text: "Досмотрите: дальше самое важное", placement: "above" }
@@ -139,7 +144,8 @@ ctas: [{
 | `video` | YouTube URL или ID | обязательно | Видео для плеера |
 | `playback` | object | см. таблицу дальше | Воспроизведение, фрагмент, loop и перемотка |
 | `progress` | object | Smart Progress | Вид и кривая шкалы |
-| `controls` | object | play, volume, progress, fullscreen | Кнопки нижней панели |
+| `controls` | object | play, volume, captions, progress, fullscreen | Кнопки нижней панели |
+| `captions` | object | `enabled: "auto"`, `language: null` | Начальное состояние и язык родных субтитров YouTube |
 | `stage` | object | собственная обложка и клики | Поведение области видео |
 | `aspectRatio` | `"16/9"`, `"9/16"` или другое отношение | `"16/9"` | Формат контейнера; для 9:16 используйте вертикальное исходное видео |
 | `ctas` | array | `[]` | Кнопки по таймеру |
@@ -212,7 +218,27 @@ progress: {
 | `volume` | `true` | Звук |
 | `fullscreen` | `true` | Полноэкранный режим |
 | `progress` | `true` | Шкала просмотра |
+| `captions` | `true` | Кнопка CC; автоматически скрывается, если YouTube не вернул дорожки |
 | `speed` | `false` | Выбор скорости |
+
+### `captions`
+
+| Параметр | Значения | По умолчанию | Что делает |
+| --- | --- | --- | --- |
+| `enabled` | `"auto"`, `true`, `false` | `"auto"` | Сохраняет выбор YouTube, включает или выключает субтитры после загрузки дорожек |
+| `language` | код языка, `null` | `null` | Предпочтительный язык, например `"ru"` или `"en"`; если его нет, выбирается первая дорожка |
+
+Видимость кнопки и состояние субтитров независимы. Например, русские субтитры можно включить без возможности отключить их через панель:
+
+```js
+controls: { captions: false },
+captions: {
+  enabled: true,
+  language: "ru"
+}
+```
+
+Кнопка CC появляется только после того, как YouTube сообщил о доступных дорожках. Она не запускает, не останавливает и не перематывает видео.
 
 ### `stage`
 
@@ -338,6 +364,8 @@ popup: {
 | `data-aspect-ratio` | `9/16` | Соотношение сторон |
 | `data-sticky` | `true` | Закреплять при прокрутке |
 | `data-popup-trigger` | `#open-video` | Открывать в popup по селектору |
+| `data-captions` | `auto`, `true`, `false` | Начальное состояние субтитров |
+| `data-captions-language` | `ru` | Предпочтительный язык субтитров |
 | `data-reveal-delay` | `200` | Задержать скрытие собственной обложки на указанное число миллисекунд |
 
 ## API
@@ -350,6 +378,9 @@ player.play();
 player.pause();
 player.mute();
 player.unmute(true); // включить звук и вернуть позицию к началу; play/pause не меняется
+player.enableCaptions("ru");
+player.disableCaptions();
+player.toggleCaptions();
 player.seek(20);     // переход вперёд будет ограничен maxWatched
 player.open();
 player.close();
@@ -369,7 +400,7 @@ document.addEventListener("yellowvsl:cta-click", (event) => {
 });
 ```
 
-Доступны `yellowvsl:ready`, `view`, `play`, `pause`, `progress`, `resume`, `complete`, `cta-show`, `cta-click`, `error`.
+Доступны `yellowvsl:ready`, `view`, `play`, `pause`, `progress`, `resume`, `complete`, `cta-show`, `cta-click`, `captions`, `error`.
 
 ## Popup и sticky
 
@@ -404,7 +435,7 @@ theme: {
 }
 ```
 
-Переопределяемые строки `locale`: `play`, `pause`, `mute`, `unmute`, `unmutePrompt`, `fullscreen`, `exitFullscreen`, `progress`, `continueTitle`, `continue`, `restart`, `autoplayBlocked`, `loading`, `close`, `speed`, `genericError`, `identityError`, `embedError`, `unavailableError`.
+Переопределяемые строки `locale`: `play`, `pause`, `mute`, `unmute`, `unmutePrompt`, `captionsEnable`, `captionsDisable`, `fullscreen`, `exitFullscreen`, `progress`, `continueTitle`, `continue`, `restart`, `autoplayBlocked`, `loading`, `close`, `speed`, `genericError`, `identityError`, `embedError`, `unavailableError`.
 
 ## Разработка
 

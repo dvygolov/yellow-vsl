@@ -3,12 +3,14 @@ const i18n = window.YellowVslSiteI18n;
 i18n.apply();
 const t = i18n.text;
 const locale = i18n.playerLocale;
+const captions = { language: i18n.language };
 
 const heroPlayer = YellowVSL.create("#hero-player", {
   video,
   playback: { autoplay: "smart", resume: false },
   progress: { mode: "smart" },
   controls: { speed: false },
+  captions,
   theme: { accent: "#ffd400", radius: "0px" },
   locale
 });
@@ -18,6 +20,7 @@ const examplePlayer = YellowVSL.create("#example-player", {
   sticky: { position: "bottom-right", width: "370px" },
   playback: { autoplay: false, resume: "ask" },
   controls: { speed: true },
+  captions,
   theme: { radius: "0px" },
   hooks: [{ id: "site-hook", start: 2, end: 5.5, text: t("player.hook"), placement: "top-left" }],
   ctas: [{ id: "site-offer", start: 6, text: t("player.cta"), reveal: "#example-offer", placement: "bottom-right", background: "#ffd400", color: "#171400", persist: false }],
@@ -30,6 +33,7 @@ const fragmentPlayer = YellowVSL.create("#fragment-player", {
   playback: { autoplay: false, resume: false, start: 10, end: 16, loop: true, rate: 1.5 },
   progress: { mode: "real" },
   controls: { speed: true },
+  captions,
   theme: { accent: "#72e5ff", radius: "16px" },
   locale
 });
@@ -42,6 +46,7 @@ const fastProgressPlayer = YellowVSL.create("#fast-progress-player", {
     points: [[0, 0], [0.001, 0.5], [0.1, 0.58], [0.5, 0.8], [1, 1]]
   },
   controls: { speed: false },
+  captions,
   theme: { accent: "#72e5ff", radius: "0px" },
   locale
 });
@@ -50,6 +55,7 @@ const externalCtaPlayer = YellowVSL.create("#external-cta-player", {
   video,
   playback: { autoplay: false, resume: false },
   controls: { speed: false },
+  captions,
   ctas: [{
     id: "yellowweb-link",
     start: 3,
@@ -69,6 +75,7 @@ const popupPlayer = YellowVSL.create("#popup-player", {
   video,
   popup: { trigger: "#open-popup", preload: true },
   playback: { autoplay: false, resume: false },
+  captions,
   theme: { accent: "#ff7ad9" },
   locale
 });

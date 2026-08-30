@@ -84,6 +84,7 @@ export class YouTubeAdapter {
           },
           onStateChange: (event) => this.events.stateChange?.(event.data, event),
           onPlaybackRateChange: (event) => this.events.rateChange?.(event.data, event),
+          onApiChange: (event) => this.events.apiChange?.(event),
           onError: (event) => {
             this.events.error?.(event.data, event);
             if (!isReady) reject(new Error(`YouTube Player error: ${event.data}`));
@@ -109,6 +110,29 @@ export class YouTubeAdapter {
   setPlaybackRate(rate) { this.player?.setPlaybackRate?.(rate); }
   getPlaybackRate() { return Number(this.player?.getPlaybackRate?.() ?? 1); }
   getAvailablePlaybackRates() { return this.player?.getAvailablePlaybackRates?.() || [1]; }
+  getCaptionTracks() {
+    try {
+      const tracks = this.player?.getOption?.("captions", "tracklist");
+      return Array.isArray(tracks) ? tracks : [];
+    } catch {
+      return [];
+    }
+  }
+  getCaptionTrack() {
+    try {
+      return this.player?.getOption?.("captions", "track") || {};
+    } catch {
+      return {};
+    }
+  }
+  setCaptionTrack(track) {
+    try { this.player?.setOption?.("captions", "track", track || {}); }
+    catch { /* Captions are optional and can be unavailable for a video. */ }
+  }
+  reloadCaptions() {
+    try { this.player?.setOption?.("captions", "reload", true); }
+    catch { /* The captions module may not be ready yet. */ }
+  }
   destroy() {
     this.player?.destroy?.();
     this.player = null;

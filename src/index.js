@@ -1,7 +1,7 @@
 import { optionsFromDataset } from "./config.js";
 import { YellowVSLPlayer } from "./player.js";
 
-export const version = "1.6.3";
+export const version = "1.7.0";
 const autoInstances = new WeakMap();
 
 export function create(target, options = {}) {

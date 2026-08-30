@@ -1,4 +1,4 @@
-/*! YellowVSL v1.6.3 | MIT License | https://github.com/dvygolov/yellow-vsl */
+/*! YellowVSL v1.7.0 | MIT License | https://github.com/dvygolov/yellow-vsl */
 
 // src/utils.js
 var DEFAULT_PROGRESS_POINTS = Object.freeze([
@@ -141,6 +141,8 @@ var DEFAULT_LOCALE = Object.freeze({
   restart: "\u041D\u0430\u0447\u0430\u0442\u044C \u0441\u043D\u0430\u0447\u0430\u043B\u0430",
   autoplayBlocked: "\u041D\u0430\u0436\u043C\u0438\u0442\u0435, \u0447\u0442\u043E\u0431\u044B \u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C \u0432\u0438\u0434\u0435\u043E",
   loading: "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u0438\u0434\u0435\u043E",
+  captionsEnable: "\u0412\u043A\u043B\u044E\u0447\u0438\u0442\u044C \u0441\u0443\u0431\u0442\u0438\u0442\u0440\u044B",
+  captionsDisable: "\u0412\u044B\u043A\u043B\u044E\u0447\u0438\u0442\u044C \u0441\u0443\u0431\u0442\u0438\u0442\u0440\u044B",
   close: "\u0417\u0430\u043A\u0440\u044B\u0442\u044C",
   speed: "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C",
   genericError: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0432\u0438\u0434\u0435\u043E",
@@ -168,7 +170,12 @@ var DEFAULT_OPTIONS = Object.freeze({
     volume: true,
     fullscreen: true,
     progress: true,
+    captions: true,
     speed: false
+  }),
+  captions: Object.freeze({
+    enabled: "auto",
+    language: null
   }),
   stage: Object.freeze({
     poster: "auto",
@@ -211,6 +218,9 @@ function normalizeOptions(options = {}) {
   progress.points = validateProgressPoints(progress.points || DEFAULT_PROGRESS_POINTS);
   const controls = { ...DEFAULT_OPTIONS.controls, ...options.controls || {} };
   if (progress.mode === "hidden") controls.progress = false;
+  const captions = { ...DEFAULT_OPTIONS.captions, ...options.captions || {} };
+  captions.enabled = [true, false, "auto"].includes(captions.enabled) ? captions.enabled : "auto";
+  captions.language = typeof captions.language === "string" && captions.language.trim() ? captions.language.trim().toLowerCase() : null;
   const stage = { ...DEFAULT_OPTIONS.stage, ...options.stage || {} };
   stage.poster = stage.poster === false ? false : typeof stage.poster === "string" ? stage.poster : "auto";
   stage.clickToToggle = stage.clickToToggle !== false;
@@ -222,6 +232,7 @@ function normalizeOptions(options = {}) {
     playback,
     progress,
     controls,
+    captions,
     stage,
     aspectRatio: options.aspectRatio || DEFAULT_OPTIONS.aspectRatio,
     aspectRatioValue: parseAspectRatio(options.aspectRatio || DEFAULT_OPTIONS.aspectRatio),
@@ -240,6 +251,7 @@ function optionsFromDataset(element2) {
   const playback = {};
   const progress = {};
   const stage = {};
+  const captions = {};
   if (dataset.autoplay === "false") playback.autoplay = false;
   if (dataset.resume === "false") playback.resume = false;
   if (dataset.resume === "auto") playback.resume = "auto";
@@ -250,12 +262,17 @@ function optionsFromDataset(element2) {
   if (dataset.noSeek === "false") playback.noSeek = false;
   if (dataset.progress) progress.mode = dataset.progress;
   if (dataset.revealDelay != null) stage.revealDelay = Number(dataset.revealDelay);
+  if (dataset.captions === "true") captions.enabled = true;
+  if (dataset.captions === "false") captions.enabled = false;
+  if (dataset.captions === "auto") captions.enabled = "auto";
+  if (dataset.captionsLanguage) captions.language = dataset.captionsLanguage;
   return {
     video: dataset.video,
     aspectRatio: dataset.aspectRatio,
     playback,
     progress,
     stage,
+    captions,
     sticky: dataset.sticky === "true",
     popup: dataset.popupTrigger ? { trigger: dataset.popupTrigger } : false
   };
@@ -423,6 +440,7 @@ var STYLES = `
   border-radius: 9px;
   cursor: pointer;
 }
+.yvsl-btn[hidden] { display: none; }
 .yvsl-btn:hover { background: rgba(255, 255, 255, .08); }
 .yvsl-play.yvsl-is-loading, .yvsl-poster__play.yvsl-is-loading { color: transparent; font-size: 0; padding: 0; }
 .yvsl-play.yvsl-is-loading::after, .yvsl-poster__play.yvsl-is-loading::after {
@@ -449,12 +467,14 @@ var STYLES = `
 .yvsl-btn--accent { color: #111; background: var(--yvsl-accent); border-color: var(--yvsl-accent); font-weight: 800; }
 .yvsl-controls {
   display: grid;
-  grid-template-columns: auto auto minmax(90px, 1fr) auto auto auto;
+  grid-template-columns: auto auto auto minmax(90px, 1fr) auto auto auto;
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
   background: var(--yvsl-panel);
 }
+.yvsl-captions { font-size: 12px; font-weight: 900; letter-spacing: -.03em; }
+.yvsl-captions[aria-pressed="true"] { color: #111; background: var(--yvsl-accent); border-color: var(--yvsl-accent); }
 .yvsl-progress {
   width: 100%;
   height: 24px;
@@ -514,7 +534,7 @@ var STYLES = `
 .yvsl-root:fullscreen.yvsl-controls-hidden .yvsl-controls { opacity: 0; transform: translateY(105%); pointer-events: none; }
 .yvsl-visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; }
 @media (max-width: 520px) {
-  .yvsl-controls { grid-template-columns: auto auto minmax(70px, 1fr) auto auto; padding: 8px; gap: 5px; }
+  .yvsl-controls { grid-template-columns: auto auto auto minmax(60px, 1fr) auto auto; padding: 8px; gap: 5px; }
   .yvsl-time { display: none; }
   .yvsl-btn { min-width: 38px; padding: 7px 9px; }
   .yvsl-root--sticky { right: 8px; bottom: 8px; width: calc(100vw - 16px); }
@@ -681,6 +701,7 @@ var YouTubeAdapter = class {
           },
           onStateChange: (event) => this.events.stateChange?.(event.data, event),
           onPlaybackRateChange: (event) => this.events.rateChange?.(event.data, event),
+          onApiChange: (event) => this.events.apiChange?.(event),
           onError: (event) => {
             this.events.error?.(event.data, event);
             if (!isReady) reject(new Error(`YouTube Player error: ${event.data}`));
@@ -734,6 +755,33 @@ var YouTubeAdapter = class {
   }
   getAvailablePlaybackRates() {
     return this.player?.getAvailablePlaybackRates?.() || [1];
+  }
+  getCaptionTracks() {
+    try {
+      const tracks = this.player?.getOption?.("captions", "tracklist");
+      return Array.isArray(tracks) ? tracks : [];
+    } catch {
+      return [];
+    }
+  }
+  getCaptionTrack() {
+    try {
+      return this.player?.getOption?.("captions", "track") || {};
+    } catch {
+      return {};
+    }
+  }
+  setCaptionTrack(track) {
+    try {
+      this.player?.setOption?.("captions", "track", track || {});
+    } catch {
+    }
+  }
+  reloadCaptions() {
+    try {
+      this.player?.setOption?.("captions", "reload", true);
+    } catch {
+    }
   }
   destroy() {
     this.player?.destroy?.();
@@ -791,6 +839,12 @@ var YellowVSLPlayer = class {
     this.playbackProbeTimer = null;
     this.clockConfirmedPlaying = false;
     this.mutedIntent = null;
+    this.captionTracks = [];
+    this.captionsEnabled = false;
+    this.captionLanguage = null;
+    this.captionsInitialized = false;
+    this.captionIntent = null;
+    this.captionProbeTimer = null;
     this.fullscreenControlsTimer = null;
     this.adapterMountPromise = null;
     this.pendingPlay = false;
@@ -846,6 +900,8 @@ var YellowVSLPlayer = class {
         start: Math.floor(this.options.playback.start)
       };
       if (this.options.playback.end != null) playerVars.end = Math.floor(this.options.playback.end);
+      if (this.options.captions.enabled === true) playerVars.cc_load_policy = 1;
+      if (this.options.captions.language) playerVars.cc_lang_pref = this.options.captions.language;
       if (origin) playerVars.origin = origin;
       const adapterFactory = this.dependencies.adapterFactory || ((config) => new YouTubeAdapter(config));
       this.adapter = adapterFactory({
@@ -856,6 +912,7 @@ var YellowVSLPlayer = class {
           ready: () => this._onReady(),
           stateChange: (state) => this._onStateChange(state),
           rateChange: (rate) => this._onRateChange(rate),
+          apiChange: () => this._onApiChange(),
           error: (code) => this._onPlayerError(code)
         }
       });
@@ -899,6 +956,9 @@ var YellowVSLPlayer = class {
     const controls = element("div", "yvsl-controls");
     const play = this._button("\u25B6", locale.play, "yvsl-play");
     const volume = this._button("\u{1F507}", locale.unmute, "yvsl-volume");
+    const captions = this._button("CC", locale.captionsEnable, "yvsl-captions");
+    captions.hidden = true;
+    captions.setAttribute("aria-pressed", "false");
     const progress = element("input", "yvsl-progress", {
       type: "range",
       min: 0,
@@ -916,13 +976,14 @@ var YellowVSLPlayer = class {
     if (!this.options.controls.volume) volume.hidden = true;
     if (!this.options.controls.progress) progress.hidden = true;
     if (!this.options.controls.fullscreen || !root.requestFullscreen) fullscreen.hidden = true;
-    controls.append(play, volume, progress, time, speed, fullscreen);
+    controls.append(play, volume, captions, progress, time, speed, fullscreen);
     const below = element("div", "yvsl-zone yvsl-zone--below");
     root.append(stickyClose, above, message, stage, error, controls, below);
     this.mount.replaceChildren(sentinel, root);
-    this.dom = { root, sentinel, above, message, stage, playerHost, stageInteraction, poster, posterImage, posterPlay, stageOverlay, topLeft, topRight, bottomLeft, bottomRight, error, controls, play, volume, progress, time, speed, fullscreen, stickyClose, below };
+    this.dom = { root, sentinel, above, message, stage, playerHost, stageInteraction, poster, posterImage, posterPlay, stageOverlay, topLeft, topRight, bottomLeft, bottomRight, error, controls, play, volume, captions, progress, time, speed, fullscreen, stickyClose, below };
     this._listen(play, "click", () => this.playerState === YT_STATE.PLAYING ? this.pause() : this.play());
     this._listen(volume, "click", () => this._isMuted() ? this.unmute() : this.mute());
+    this._listen(captions, "click", () => this.toggleCaptions());
     this._listen(progress, "input", () => this._seekFromProgress());
     this._listen(speed, "change", () => this._setRate(Number(speed.value)));
     this._listen(fullscreen, "click", () => this._toggleFullscreen());
@@ -980,6 +1041,7 @@ var YellowVSLPlayer = class {
     this._refreshDuration();
     this._populateRates();
     this._setRate(this.options.playback.rate);
+    this._startCaptionProbe();
     this._updateUi();
     this._emit("ready");
     this._emit("view");
@@ -1060,6 +1122,7 @@ var YellowVSLPlayer = class {
     const previousState = this.playerState;
     const confirmedByClock = this.clockConfirmedPlaying;
     this.playerState = state;
+    if (state === YT_STATE.BUFFERING || state === YT_STATE.PLAYING) this._startCaptionProbe();
     this.loading = state === YT_STATE.BUFFERING;
     if (state === YT_STATE.BUFFERING) {
       this.clockConfirmedPlaying = false;
@@ -1133,6 +1196,77 @@ var YellowVSLPlayer = class {
     }
     this.playerState === YT_STATE.PLAYING ? this.pause() : this.play();
   }
+  _onApiChange() {
+    if (this.destroyed || !this.adapter) return;
+    const tracks = this.adapter.getCaptionTracks?.() || [];
+    const captionTracks = tracks.filter((track) => track && typeof track.languageCode === "string");
+    if (!captionTracks.length) {
+      this.captionsEnabled = false;
+      this.dom.captions.hidden = true;
+      this._updateCaptionButton();
+      return;
+    }
+    this._applyCaptionTracks(captionTracks);
+    for (const instance of instances) {
+      if (instance !== this && !instance.destroyed && instance.videoId === this.videoId && instance.adapter && !instance.captionTracks.length) {
+        instance._applyCaptionTracks(captionTracks);
+      }
+    }
+  }
+  _applyCaptionTracks(tracks) {
+    this.captionTracks = tracks;
+    this._stopCaptionProbe();
+    if (!this.captionsInitialized) {
+      const activeTrack = this.adapter.getCaptionTrack?.() || {};
+      const activeLanguage = typeof activeTrack.languageCode === "string" ? activeTrack.languageCode : null;
+      this.captionsEnabled = Boolean(activeLanguage);
+      this.captionsInitialized = true;
+      const desiredState = this.captionIntent ?? this.options.captions.enabled;
+      if (desiredState === true) {
+        this.captionLanguage = this.options.captions.language || this.captionLanguage || activeLanguage || this.captionTracks[0].languageCode;
+        this.enableCaptions(this.captionLanguage);
+      } else if (desiredState === false) {
+        this.captionLanguage = this.options.captions.language || this.captionLanguage || activeLanguage || this.captionTracks[0].languageCode;
+        this.disableCaptions();
+      } else {
+        this.captionLanguage = activeLanguage || this.options.captions.language || this.captionTracks[0].languageCode;
+      }
+    }
+    this.dom.captions.hidden = !this.options.controls.captions;
+    this._updateCaptionButton();
+  }
+  _startCaptionProbe() {
+    if (this.destroyed || this.captionTracks.length || this.captionProbeTimer) return;
+    let attempts = 0;
+    const probe = () => {
+      this.captionProbeTimer = null;
+      if (this.destroyed || this.captionTracks.length) return;
+      attempts += 1;
+      if (attempts === 1 || attempts === 8) this.adapter?.reloadCaptions?.();
+      this._onApiChange();
+      if (!this.captionTracks.length && attempts < 20) {
+        this.captionProbeTimer = window.setTimeout(probe, 250);
+      }
+    };
+    this.captionProbeTimer = window.setTimeout(probe, 0);
+  }
+  _stopCaptionProbe() {
+    if (!this.captionProbeTimer) return;
+    window.clearTimeout(this.captionProbeTimer);
+    this.captionProbeTimer = null;
+  }
+  _captionTrack(language = null) {
+    const requested = language || this.options.captions.language || this.captionLanguage;
+    const normalized = typeof requested === "string" ? requested.toLowerCase() : null;
+    return this.captionTracks.find((track) => track.languageCode.toLowerCase() === normalized) || this.captionTracks.find((track) => track.languageCode.toLowerCase().split("-")[0] === normalized?.split("-")[0]) || this.captionTracks[0] || null;
+  }
+  _updateCaptionButton() {
+    if (!this.dom?.captions) return;
+    const label = this.captionsEnabled ? this.options.locale.captionsDisable : this.options.locale.captionsEnable;
+    this.dom.captions.title = label;
+    this.dom.captions.setAttribute("aria-label", label);
+    this.dom.captions.setAttribute("aria-pressed", String(this.captionsEnabled));
+  }
   _onRateChange(rate) {
     this.timeline.rate = Number(rate) || 1;
     if (this.dom.speed) this.dom.speed.value = String(this.timeline.rate);
@@ -1147,6 +1281,7 @@ var YellowVSLPlayer = class {
   }
   _showError(message, code) {
     this._stopPlaybackProbe();
+    this._stopCaptionProbe();
     this.loading = false;
     this.dom.error.textContent = message;
     this.dom.error.hidden = false;
@@ -1273,6 +1408,7 @@ var YellowVSLPlayer = class {
     this.dom.volume.textContent = muted ? "\u{1F507}" : "\u{1F50A}";
     this.dom.volume.title = muted ? this.options.locale.unmute : this.options.locale.mute;
     this.dom.volume.setAttribute("aria-label", this.dom.volume.title);
+    this._updateCaptionButton();
     const duration = this.timeline.duration || 0;
     const realFraction = duration ? clamp(this.timeline.current / duration, 0, 1) : 0;
     const visualFraction = this.options.progress.mode === "smart" ? interpolateProgress(realFraction, this.options.progress.points) : realFraction;
@@ -1614,6 +1750,29 @@ var YellowVSLPlayer = class {
     this.adapter?.pause();
     return this;
   }
+  enableCaptions(language = null) {
+    this.captionIntent = true;
+    if (typeof language === "string" && language.trim()) this.captionLanguage = language.trim().toLowerCase();
+    const track = this._captionTrack(language);
+    if (!track || !this.adapter) return this;
+    this.adapter.setCaptionTrack?.({ languageCode: track.languageCode });
+    this.captionLanguage = track.languageCode;
+    this.captionsEnabled = true;
+    this._updateCaptionButton();
+    this._emit("captions", { enabled: true, language: this.captionLanguage });
+    return this;
+  }
+  disableCaptions() {
+    this.captionIntent = false;
+    this.adapter?.setCaptionTrack?.(null);
+    this.captionsEnabled = false;
+    this._updateCaptionButton();
+    this._emit("captions", { enabled: false, language: this.captionLanguage });
+    return this;
+  }
+  toggleCaptions() {
+    return this.captionsEnabled ? this.disableCaptions() : this.enableCaptions();
+  }
   mute() {
     this.mutedIntent = true;
     this.adapter?.mute();
@@ -1697,6 +1856,8 @@ var YellowVSLPlayer = class {
       duration: this.timeline.duration,
       maxWatched: this.timeline.maxWatched,
       muted: this._isMuted(),
+      captions: this.captionsEnabled,
+      captionLanguage: this.captionLanguage,
       rate: this.timeline.rate,
       popupOpen: this.popupOpen,
       sticky: this.dom.root.classList.contains("yvsl-root--sticky")
@@ -1708,6 +1869,7 @@ var YellowVSLPlayer = class {
     this.destroyed = true;
     this._stopTicker();
     this._stopPlaybackProbe();
+    this._stopCaptionProbe();
     this._clearFullscreenControlsTimer();
     this._cancelStageWarmup();
     this.stickyObserver?.disconnect();
@@ -1732,7 +1894,7 @@ function safeLocalStorage() {
 }
 
 // src/index.js
-var version = "1.6.3";
+var version = "1.7.0";
 var autoInstances = /* @__PURE__ */ new WeakMap();
 function create(target, options = {}) {
   return new YellowVSLPlayer(target, options);
