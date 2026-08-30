@@ -35,19 +35,25 @@ try {
     const captionsToggle = await page.evaluate(() => {
       const player = window.mainPlayer;
       const before = player.getState();
+      const beforeClean = player.dom.root.classList.contains("yvsl-root--clean-youtube");
       player.dom.captions.click();
       const enabled = player.getState();
+      const enabledClean = player.dom.root.classList.contains("yvsl-root--clean-youtube");
       const selectedTrack = player.adapter.player.captionTrack;
       player.dom.captions.click();
       const disabled = player.getState();
-      return { before, enabled, selectedTrack, disabled };
+      const disabledClean = player.dom.root.classList.contains("yvsl-root--clean-youtube");
+      return { before, beforeClean, enabled, enabledClean, selectedTrack, disabled, disabledClean };
     });
     assert.equal(await page.locator("#main .yvsl-captions").isVisible(), true, `${name}: captions button appears when tracks exist`);
     assert.equal(captionsToggle.before.captions, false, `${name}: captions start disabled in the fake player`);
+    assert.equal(captionsToggle.beforeClean, true, `${name}: clean YouTube frame is active while captions are off`);
     assert.equal(captionsToggle.enabled.captions, true, `${name}: captions button enables captions`);
+    assert.equal(captionsToggle.enabledClean, false, `${name}: captions restore native iframe geometry`);
     assert.equal(captionsToggle.enabled.playerState, captionsToggle.before.playerState, `${name}: enabling captions does not change play/pause`);
     assert.equal(captionsToggle.selectedTrack.languageCode, "en", `${name}: captions button selects the first available track`);
     assert.equal(captionsToggle.disabled.captions, false, `${name}: second captions click disables captions`);
+    assert.equal(captionsToggle.disabledClean, true, `${name}: disabling captions restores clean YouTube frame`);
     assert.equal(captionsToggle.disabled.playerState, captionsToggle.before.playerState, `${name}: disabling captions does not change play/pause`);
 
     const volumeToggle = await page.evaluate(() => {
@@ -119,7 +125,8 @@ try {
       const blocked = {
         seekCalls,
         currentTime: player.getState().currentTime,
-        progressValue: Number(player.dom.progress.value)
+        progressValue: Number(player.dom.progress.value),
+        cleanMode: player.dom.root.classList.contains("yvsl-root--clean-youtube")
       };
       player._onStateChange(3);
       blocked.posterHiddenDuringBuffering = player.dom.poster.hidden;
@@ -131,6 +138,7 @@ try {
     assert.equal(blockedTimelineClick.currentTime, 2, `${name}: blocked timeline click keeps current time`);
     assert.notEqual(blockedTimelineClick.progressValue, 950, `${name}: blocked timeline click restores progress thumb`);
     assert.equal(blockedTimelineClick.posterHiddenDuringBuffering, true, `${name}: buffering does not flash own poster`);
+    assert.equal(blockedTimelineClick.cleanMode, true, `${name}: blocked timeline click keeps the clean YouTube frame`);
 
     const warmup = await page.evaluate(async () => {
       const mount = document.createElement("div");
@@ -255,10 +263,12 @@ try {
       const before = beforeState.maxWatched;
       const forward = window.mainPlayer.seek(before + 40);
       const backward = window.mainPlayer.seek(before / 2);
-      return { before, currentBefore: beforeState.currentTime, forward, backward, state: window.mainPlayer.getState() };
+      const cleanMode = window.mainPlayer.dom.root.classList.contains("yvsl-root--clean-youtube");
+      return { before, currentBefore: beforeState.currentTime, forward, backward, cleanMode, state: window.mainPlayer.getState() };
     });
     assert.ok(Math.abs(seek.forward - seek.currentBefore) < 0.01, `${name}: forward seek is a no-op`);
     assert.ok(Math.abs(seek.backward - seek.before / 2) < 0.01, `${name}: backward seek allowed`);
+    assert.equal(seek.cleanMode, true, `${name}: backward seek keeps the clean YouTube frame`);
     assert.equal(await page.evaluate(() => window.YellowVSL.interpolateProgress(0.1)), 0.3, `${name}: smart curve`);
 
     const advanced = await page.evaluate(async () => {

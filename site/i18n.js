@@ -116,7 +116,7 @@
       "install.modes.text": "Точки Smart Progress можно задавать дробями 0..1 или обычными процентами 0..100. Дефолтная кривая остаётся встроенной.",
       "install.captions.kicker": "Субтитры",
       "install.captions.title": "Родные дорожки YouTube",
-      "install.captions.text": "Видимость кнопки и состояние независимы: можно включить нужную дорожку и скрыть CC от посетителя.",
+      "install.captions.text": "В clean-режиме служебные элементы YouTube скрыты. При включении CC плеер автоматически возвращает обычный iframe, чтобы показать родные субтитры.",
       "install.docs.title": "Все параметры собраны на GitHub",
       "install.docs.text": "README содержит таблицы playback, progress, captions, controls, stage, CTA, hooks, reveals, theme, методов и событий.",
       "install.docs.button": "Открыть полную документацию",
@@ -180,11 +180,12 @@
 controls: { speed: true },
 sticky: { position: "bottom-right", width: "420px" },
 popup: false`,
-      "code.captions": `controls: {
-  captions: false // не показывать кнопку CC
+      "code.captions": `youtubeUi: "clean",
+controls: {
+  captions: true
 },
 captions: {
-  enabled: true,
+  enabled: false,
   language: "ru"
 }`
     },
@@ -290,7 +291,7 @@ captions: {
       "install.modes.text": "Smart Progress points accept 0..1 fractions or regular 0..100 percentages. The built-in default curve stays unchanged.",
       "install.captions.kicker": "Captions",
       "install.captions.title": "Native YouTube caption tracks",
-      "install.captions.text": "Button visibility and caption state are independent: enable a track while hiding CC from the visitor.",
+      "install.captions.text": "Clean mode hides YouTube UI. Enabling CC automatically restores the native iframe so YouTube captions remain visible.",
       "install.docs.title": "Every option is documented on GitHub",
       "install.docs.text": "The README covers playback, progress, captions, controls, stage, CTA, hooks, reveals, theme, methods and browser events.",
       "install.docs.button": "Open full documentation",
@@ -354,11 +355,12 @@ captions: {
 controls: { speed: true },
 sticky: { position: "bottom-right", width: "420px" },
 popup: false`,
-      "code.captions": `controls: {
-  captions: false // hide the CC button
+      "code.captions": `youtubeUi: "clean",
+controls: {
+  captions: true
 },
 captions: {
-  enabled: true,
+  enabled: false,
   language: "en"
 }`
     }

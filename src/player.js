@@ -216,6 +216,7 @@ export class YellowVSLPlayer {
     this.mount.replaceChildren(sentinel, root);
 
     this.dom = { root, sentinel, above, message, stage, playerHost, stageInteraction, poster, posterImage, posterPlay, stageOverlay, topLeft, topRight, bottomLeft, bottomRight, error, controls, play, volume, captions, progress, time, speed, fullscreen, stickyClose, below };
+    this._updateYoutubeUiMode();
 
     this._listen(play, "click", () => this.playerState === YT_STATE.PLAYING ? this.pause() : this.play());
     this._listen(volume, "click", () => this._isMuted() ? this.unmute() : this.mute());
@@ -584,6 +585,13 @@ export class YellowVSLPlayer {
     this.dom.captions.title = label;
     this.dom.captions.setAttribute("aria-label", label);
     this.dom.captions.setAttribute("aria-pressed", String(this.captionsEnabled));
+    this._updateYoutubeUiMode();
+  }
+
+  _updateYoutubeUiMode() {
+    if (!this.dom?.root) return;
+    const clean = this.options.youtubeUi === "clean" && !this.captionsEnabled;
+    this.dom.root.classList.toggle("yvsl-root--clean-youtube", clean);
   }
 
   _onRateChange(rate) {

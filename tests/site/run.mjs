@@ -21,8 +21,8 @@ try {
   assert.equal(await page.evaluate(() => window.yellowVslSite.heroPlayer.getState().videoId), "Y7jHPB7FjhM", "на сайте используется выбранное видео");
   assert.equal(await page.evaluate(() => window.yellowVslSite.heroPlayer.options.playback.end), null, "hero показывает полное видео");
   assert.equal(await page.evaluate(() => window.yellowVslSite.examplePlayer.options.playback.end), null, "основной пример показывает полное видео");
-  assert.equal(await page.evaluate(() => window.yellowVslSite.heroPlayer.options.captions.enabled), true, "hero включает субтитры по умолчанию");
-  assert.equal(await page.evaluate(() => window.yellowVslSite.examplePlayer.options.captions.enabled), true, "основной пример включает субтитры по умолчанию");
+  assert.equal(await page.evaluate(() => window.yellowVslSite.heroPlayer.options.captions.enabled), false, "hero начинает с чистого YouTube-кадра");
+  assert.equal(await page.evaluate(() => window.yellowVslSite.examplePlayer.options.captions.enabled), false, "основной пример начинает с чистого YouTube-кадра");
   assert.deepEqual(
     await page.evaluate(() => window.yellowVslSite.fastProgressPlayer.options.progress.points),
     [[0, 0], [0.001, 0.5], [0.1, 0.58], [0.5, 0.8], [1, 1]],
@@ -31,8 +31,9 @@ try {
   assert.equal(await page.evaluate(() => window.yellowVslSite.popupPlayer.options.progress.mode), "smart", "popup показывает Smart Progress");
   assert.equal(await page.locator("#hero-player [data-fake-youtube]").evaluate((node) => getComputedStyle(node).pointerEvents), "none", "YouTube iframe не получает hover");
   assert.equal(await page.locator("#hero-player .yvsl-captions").isVisible(), true, "кнопка CC появляется для видео с дорожками");
-  assert.equal(await page.locator("#hero-player .yvsl-captions").getAttribute("aria-pressed"), "true", "субтитры hero включены");
-  assert.equal(await page.locator("#example-player .yvsl-captions").getAttribute("aria-pressed"), "true", "субтитры основного примера включены");
+  assert.equal(await page.locator("#hero-player .yvsl-captions").getAttribute("aria-pressed"), "false", "субтитры hero доступны, но выключены");
+  assert.equal(await page.locator("#example-player .yvsl-captions").getAttribute("aria-pressed"), "false", "субтитры основного примера доступны, но выключены");
+  assert.equal(await page.locator("#example-player .yvsl-root").evaluate((node) => node.classList.contains("yvsl-root--clean-youtube")), true, "основной пример использует clean-режим");
   assert.equal((await page.locator("body").innerText()).includes("Это настоящий плеер, а не картинка"), false, "нежелательная подпись удалена");
   assert.equal((await page.locator("body").innerText()).includes("Живые примеры"), false, "калька про живые примеры удалена");
   assert.equal((await page.locator("body").innerText()).includes("медиавремени"), false, "непонятный термин удалён");
@@ -40,7 +41,7 @@ try {
   assert.equal((await page.locator("body").innerText()).includes("__VERSION__"), false, "версия подставлена при сборке");
   assert.equal((await page.locator("body").innerText()).includes("__SIZE__"), false, "размер minified-сборки подставлен при сборке");
   assert.equal(await page.locator("#example-forward, #example-back, #example-result, #event-log, #event-count").count(), 0, "тестовые кнопки и JSON-лог удалены");
-  assert.match(await page.locator("#install-code").textContent(), /yellow-vsl@v1\.7\.1/);
+  assert.match(await page.locator("#install-code").textContent(), /yellow-vsl@v1\.7\.2/);
   assert.match(await page.locator("#modes-code").textContent(), /\[5, 50\].*\[30, 70\].*\[50, 90\]/s);
   assert.match(await page.locator("#cta-code").textContent(), /background: "#ff3b30"/);
   assert.match(await page.locator("#cta-code").textContent(), /reveal: "#offer"/);
@@ -48,8 +49,9 @@ try {
   assert.match(await page.locator("#cta-code").textContent(), /target: "_blank"/);
   assert.match(await page.locator("#cta-code").textContent(), /reveals: \[\{/);
   assert.match(await page.locator("#cta-code").textContent(), /selector: "#order-form"/);
-  assert.match(await page.locator("#captions-code").textContent(), /captions: false/);
-  assert.match(await page.locator("#captions-code").textContent(), /enabled: true/);
+  assert.match(await page.locator("#captions-code").textContent(), /youtubeUi: "clean"/);
+  assert.match(await page.locator("#captions-code").textContent(), /captions: true/);
+  assert.match(await page.locator("#captions-code").textContent(), /enabled: false/);
   assert.match(await page.locator("#captions-code").textContent(), /language: "ru"/);
   assert.match(await page.locator("#docs-link").getAttribute("href"), /yellow-vsl#configuration-reference$/);
   assert.equal(await page.locator('meta[property="og:image"]').getAttribute("content"), "https://yellowvsl.pages.dev/og.png");

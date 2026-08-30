@@ -51,6 +51,7 @@ export const DEFAULT_OPTIONS = Object.freeze({
     enabled: "auto",
     language: null
   }),
+  youtubeUi: "clean",
   stage: Object.freeze({
     poster: "auto",
     clickToToggle: true,
@@ -102,6 +103,7 @@ export function normalizeOptions(options = {}) {
   captions.language = typeof captions.language === "string" && captions.language.trim()
     ? captions.language.trim().toLowerCase()
     : null;
+  const youtubeUi = options.youtubeUi === "native" ? "native" : "clean";
 
   const stage = { ...DEFAULT_OPTIONS.stage, ...(options.stage || {}) };
   stage.poster = stage.poster === false ? false : (typeof stage.poster === "string" ? stage.poster : "auto");
@@ -116,6 +118,7 @@ export function normalizeOptions(options = {}) {
     progress,
     controls,
     captions,
+    youtubeUi,
     stage,
     aspectRatio: options.aspectRatio || DEFAULT_OPTIONS.aspectRatio,
     aspectRatioValue: parseAspectRatio(options.aspectRatio || DEFAULT_OPTIONS.aspectRatio),
@@ -165,6 +168,7 @@ export function optionsFromDataset(element) {
     progress,
     stage,
     captions,
+    youtubeUi: dataset.youtubeUi,
     sticky: dataset.sticky === "true",
     popup: dataset.popupTrigger ? { trigger: dataset.popupTrigger } : false
   };

@@ -11,6 +11,7 @@ test("конфигурация по умолчанию включает Smart Pr
   assert.equal(options.playback.resume, "ask");
   assert.equal(options.controls.captions, true);
   assert.deepEqual(options.captions, { enabled: "auto", language: null });
+  assert.equal(options.youtubeUi, "clean");
 });
 
 test("start/end, rate, timed CTA, hooks и автоматические reveals нормализуются", () => {
@@ -19,6 +20,7 @@ test("start/end, rate, timed CTA, hooks и автоматические reveals 
     playback: { start: 15, end: 10, rate: 4, autoplay: false },
     progress: { mode: "real" },
     captions: { enabled: true, language: "ru" },
+    youtubeUi: "native",
     ctas: [{ start: 9, end: 4, placement: "bottom-right", text: "CTA", background: "#123456", color: "#fff" }],
     hooks: [{ id: "hook", start: -2, end: 3, placement: "top-left" }],
     reveals: [{ start: 12, end: 8, selector: "#offer", persist: false }]
@@ -29,6 +31,7 @@ test("start/end, rate, timed CTA, hooks и автоматические reveals 
   assert.equal(options.playback.autoplay, false);
   assert.equal(options.progress.mode, "real");
   assert.deepEqual(options.captions, { enabled: true, language: "ru" });
+  assert.equal(options.youtubeUi, "native");
   assert.deepEqual(options.ctas[0], { start: 9, end: 9, placement: "bottom-right", text: "CTA", background: "#123456", color: "#fff", id: "cta-1" });
   assert.equal(options.hooks[0].start, 0);
   assert.equal(options.hooks[0].placement, "top-left");

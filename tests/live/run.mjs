@@ -32,6 +32,9 @@ try {
     await page.waitForFunction(() => window.livePlayer.getState().currentTime > 0, { timeout: 15000 });
     await page.waitForFunction(() => window.livePlayer.captionTracks.length > 0, { timeout: 15000 });
     assert.equal(await page.locator("#live .yvsl-captions").isVisible(), true, `${name}: CC button appears for captioned video`);
+    const cleanStageBox = await page.locator("#live .yvsl-stage").boundingBox();
+    const cleanIframeBox = await page.locator("#live iframe").boundingBox();
+    assert.ok(cleanStageBox && cleanIframeBox && cleanIframeBox.height >= cleanStageBox.height + 1900, `${name}: captions-off mode crops the oversized YouTube frame`);
     const beforeCaptions = await page.evaluate(() => window.livePlayer.getState());
     await page.locator("#live .yvsl-captions").click();
     const enabledCaptions = await page.evaluate(() => window.livePlayer.getState());
@@ -49,6 +52,7 @@ try {
     assert.ok(Math.abs(iframeBox.y - stageBox.y) <= 1 && Math.abs(iframeBox.height - stageBox.height) <= 1, `${name}: YouTube iframe matches the visible frame`);
     await page.locator("#live .yvsl-captions").click();
     assert.equal(await page.evaluate(() => window.livePlayer.getState().captions), false, `${name}: second CC click disables captions`);
+    assert.equal(await page.locator("#live .yvsl-root").evaluate((node) => node.classList.contains("yvsl-root--clean-youtube")), true, `${name}: captions off restores clean mode`);
     await page.locator("#live-popup-trigger").click();
     await page.waitForFunction(() => window.livePopupPlayer.captionTracks.length > 0, { timeout: 15000 });
     assert.equal(await page.locator(".yvsl-popup-panel .yvsl-captions").isVisible(), true, `${name}: popup CC button appears for the same video`);

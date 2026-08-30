@@ -1,4 +1,4 @@
-/*! YellowVSL v1.7.1 | MIT License | https://github.com/dvygolov/yellow-vsl */
+/*! YellowVSL v1.7.2 | MIT License | https://github.com/dvygolov/yellow-vsl */
 (() => {
   var __defProp = Object.defineProperty;
   var __export = (target, all) => {
@@ -199,6 +199,7 @@
       enabled: "auto",
       language: null
     }),
+    youtubeUi: "clean",
     stage: Object.freeze({
       poster: "auto",
       clickToToggle: true,
@@ -243,6 +244,7 @@
     const captions = { ...DEFAULT_OPTIONS.captions, ...options.captions || {} };
     captions.enabled = [true, false, "auto"].includes(captions.enabled) ? captions.enabled : "auto";
     captions.language = typeof captions.language === "string" && captions.language.trim() ? captions.language.trim().toLowerCase() : null;
+    const youtubeUi = options.youtubeUi === "native" ? "native" : "clean";
     const stage = { ...DEFAULT_OPTIONS.stage, ...options.stage || {} };
     stage.poster = stage.poster === false ? false : typeof stage.poster === "string" ? stage.poster : "auto";
     stage.clickToToggle = stage.clickToToggle !== false;
@@ -255,6 +257,7 @@
       progress,
       controls,
       captions,
+      youtubeUi,
       stage,
       aspectRatio: options.aspectRatio || DEFAULT_OPTIONS.aspectRatio,
       aspectRatioValue: parseAspectRatio(options.aspectRatio || DEFAULT_OPTIONS.aspectRatio),
@@ -295,6 +298,7 @@
       progress,
       stage,
       captions,
+      youtubeUi: dataset.youtubeUi,
       sticky: dataset.sticky === "true",
       popup: dataset.popupTrigger ? { trigger: dataset.popupTrigger } : false
     };
@@ -389,6 +393,7 @@
 }
 .yvsl-player-host { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; }
 .yvsl-player-host > div, .yvsl-player-host iframe, .yvsl-stage > iframe { width: 100% !important; height: 100% !important; display: block; border: 0; pointer-events: none !important; }
+.yvsl-root--clean-youtube .yvsl-stage > iframe.yvsl-player-host { top: -1000px !important; bottom: auto !important; height: calc(100% + 2000px) !important; }
 .yvsl-stage-interaction { position: absolute; inset: 0; z-index: 1; }
 .yvsl-stage-interaction[role="button"] { cursor: pointer; }
 .yvsl-stage-interaction:focus-visible { outline: 3px solid color-mix(in srgb, var(--yvsl-accent) 70%, white); outline-offset: -5px; }
@@ -1006,6 +1011,7 @@
       root.append(stickyClose, above, message, stage, error, controls, below);
       this.mount.replaceChildren(sentinel, root);
       this.dom = { root, sentinel, above, message, stage, playerHost, stageInteraction, poster, posterImage, posterPlay, stageOverlay, topLeft, topRight, bottomLeft, bottomRight, error, controls, play, volume, captions, progress, time, speed, fullscreen, stickyClose, below };
+      this._updateYoutubeUiMode();
       this._listen(play, "click", () => this.playerState === YT_STATE.PLAYING ? this.pause() : this.play());
       this._listen(volume, "click", () => this._isMuted() ? this.unmute() : this.mute());
       this._listen(captions, "click", () => this.toggleCaptions());
@@ -1333,6 +1339,12 @@
       this.dom.captions.title = label;
       this.dom.captions.setAttribute("aria-label", label);
       this.dom.captions.setAttribute("aria-pressed", String(this.captionsEnabled));
+      this._updateYoutubeUiMode();
+    }
+    _updateYoutubeUiMode() {
+      if (!this.dom?.root) return;
+      const clean = this.options.youtubeUi === "clean" && !this.captionsEnabled;
+      this.dom.root.classList.toggle("yvsl-root--clean-youtube", clean);
     }
     _onRateChange(rate) {
       this.timeline.rate = Number(rate) || 1;
@@ -1962,7 +1974,7 @@
   }
 
   // src/index.js
-  var version = "1.7.1";
+  var version = "1.7.2";
   var autoInstances = /* @__PURE__ */ new WeakMap();
   function create(target, options = {}) {
     return new YellowVSLPlayer(target, options);

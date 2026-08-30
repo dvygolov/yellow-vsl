@@ -30,7 +30,7 @@ A free vanilla JavaScript VSL player backed by YouTube. YellowVSL adds Smart Aut
   data-video="https://youtu.be/M7lc1UVf-VE">
 </div>
 
-<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.7.1/dist/yellow-vsl.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.7.2/dist/yellow-vsl.min.js"></script>
 ```
 
 The defaults include:
@@ -69,7 +69,7 @@ Open `http://127.0.0.1:4173/demo/`. The demo covers Smart Autoplay, Smart Progre
   This block is revealed after the CTA is clicked.
 </section>
 
-<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.7.1/dist/yellow-vsl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.7.2/dist/yellow-vsl.min.js"></script>
 <script>
   const player = YellowVSL.create("#sales-video", {
     video: "https://www.youtube.com/watch?v=M7lc1UVf-VE",
@@ -99,6 +99,7 @@ Open `http://127.0.0.1:4173/demo/`. The demo covers Smart Autoplay, Smart Progre
       enabled: "auto",
       language: "en"
     },
+    youtubeUi: "clean",
     hooks: [{
       id: "wait",
       start: 10,
@@ -135,6 +136,7 @@ All `start`, `end`, CTA, hook and reveal times are relative to the beginning of 
 | `progress` | object | Smart Progress | Progress mode and curve |
 | `controls` | object | play, volume, captions, progress, fullscreen | Bottom control bar |
 | `captions` | object | `enabled: "auto"`, `language: null` | Initial state and language for native YouTube captions |
+| `youtubeUi` | `"clean"`, `"native"` | `"clean"` | Clean video frame or native iframe geometry |
 | `stage` | object | custom poster and click layer | Video stage behavior |
 | `aspectRatio` | `"16/9"`, `"9/16"` or another ratio | `"16/9"` | Container shape; use a vertical source video for 9:16 |
 | `ctas` | array | `[]` | Timed CTA buttons |
@@ -228,6 +230,8 @@ captions: {
 ```
 
 The CC button appears only after YouTube reports at least one caption track. It never changes play, pause, or the current position.
+
+With `youtubeUi: "clean"`, the player uses a clean frame while captions are off. Enabling CC automatically restores native iframe geometry so YouTube captions remain visible. Disabling CC returns to the clean frame. Use `"native"` to disable this switching behavior.
 
 ### `stage`
 
@@ -357,6 +361,7 @@ Overridable `locale` strings: `play`, `pause`, `mute`, `unmute`, `unmutePrompt`,
 | `data-popup-trigger` | `#open-video` | Popup trigger selector |
 | `data-captions` | `auto`, `true`, `false` | Initial caption state |
 | `data-captions-language` | `en` | Preferred caption language |
+| `data-youtube-ui` | `clean`, `native` | YouTube iframe display mode |
 | `data-reveal-delay` | `200` | Poster reveal delay in milliseconds |
 
 ## API

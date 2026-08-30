@@ -30,7 +30,7 @@ If you like this script, PLEASE DONATE!
   data-video="https://youtu.be/M7lc1UVf-VE">
 </div>
 
-<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.7.1/dist/yellow-vsl.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.7.2/dist/yellow-vsl.min.js"></script>
 ```
 
 По умолчанию включены:
@@ -71,7 +71,7 @@ npm run demo
   Этот блок откроется после клика по CTA.
 </section>
 
-<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.7.1/dist/yellow-vsl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.7.2/dist/yellow-vsl.min.js"></script>
 <script>
   const player = YellowVSL.create("#sales-video", {
     video: "https://www.youtube.com/watch?v=M7lc1UVf-VE",
@@ -101,6 +101,7 @@ npm run demo
       enabled: "auto",
       language: "ru"
     },
+    youtubeUi: "clean",
     hooks: [
       { id: "wait", start: 10, end: 20, text: "Досмотрите: дальше самое важное", placement: "above" }
     ],
@@ -146,6 +147,7 @@ ctas: [{
 | `progress` | object | Smart Progress | Вид и кривая шкалы |
 | `controls` | object | play, volume, captions, progress, fullscreen | Кнопки нижней панели |
 | `captions` | object | `enabled: "auto"`, `language: null` | Начальное состояние и язык родных субтитров YouTube |
+| `youtubeUi` | `"clean"`, `"native"` | `"clean"` | Чистый кадр без служебных элементов YouTube или обычная геометрия iframe |
 | `stage` | object | собственная обложка и клики | Поведение области видео |
 | `aspectRatio` | `"16/9"`, `"9/16"` или другое отношение | `"16/9"` | Формат контейнера; для 9:16 используйте вертикальное исходное видео |
 | `ctas` | array | `[]` | Кнопки по таймеру |
@@ -239,6 +241,8 @@ captions: {
 ```
 
 Кнопка CC появляется только после того, как YouTube сообщил о доступных дорожках. Она не запускает, не останавливает и не перематывает видео.
+
+При `youtubeUi: "clean"` плеер использует чистый кадр, пока субтитры выключены. Включение CC автоматически возвращает iframe к обычной геометрии, чтобы родные субтитры YouTube были видны. После выключения CC чистый режим включается снова. Значение `"native"` отключает это переключение.
 
 ### `stage`
 
@@ -366,6 +370,7 @@ popup: {
 | `data-popup-trigger` | `#open-video` | Открывать в popup по селектору |
 | `data-captions` | `auto`, `true`, `false` | Начальное состояние субтитров |
 | `data-captions-language` | `ru` | Предпочтительный язык субтитров |
+| `data-youtube-ui` | `clean`, `native` | Режим отображения YouTube iframe |
 | `data-reveal-delay` | `200` | Задержать скрытие собственной обложки на указанное число миллисекунд |
 
 ## API
