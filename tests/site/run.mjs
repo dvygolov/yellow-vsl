@@ -41,7 +41,8 @@ try {
   assert.equal((await page.locator("body").innerText()).includes("__VERSION__"), false, "версия подставлена при сборке");
   assert.equal((await page.locator("body").innerText()).includes("__SIZE__"), false, "размер minified-сборки подставлен при сборке");
   assert.equal(await page.locator("#example-forward, #example-back, #example-result, #event-log, #event-count").count(), 0, "тестовые кнопки и JSON-лог удалены");
-  assert.match(await page.locator("#install-code").textContent(), /yellow-vsl@v1\.7\.3/);
+  assert.equal(await page.locator("#example-unmute, #fragment-start").count(), 0, "лишние демонстрационные кнопки удалены");
+  assert.match(await page.locator("#install-code").textContent(), /yellow-vsl@v1\.7\.4/);
   assert.match(await page.locator("#modes-code").textContent(), /\[5, 50\].*\[30, 70\].*\[50, 90\]/s);
   assert.match(await page.locator("#cta-code").textContent(), /background: "#ff3b30"/);
   assert.match(await page.locator("#cta-code").textContent(), /reveal: "#offer"/);
@@ -100,9 +101,6 @@ try {
   await page.locator("#example-player .yvsl-cta").click();
   assert.equal(await page.locator("#example-offer").isVisible(), true, "CTA раскрывает оффер после клика");
   assert.equal(await page.evaluate(() => window.yellowVslSite.fragmentPlayer.options.aspectRatioValue), 16 / 9, "фрагмент больше не притворяется вертикальным видео");
-
-  await page.click("#example-unmute");
-  assert.equal(await page.locator("#example-unmute").isHidden(), true, "одноразовая кнопка включения звука исчезает");
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.click("#open-popup");

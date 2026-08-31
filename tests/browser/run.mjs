@@ -247,7 +247,10 @@ try {
         stage: { revealDelay: 0 }
       });
       await player.ready;
-      player.adapter.play = () => {};
+      let playCalls = 0;
+      const seekCalls = [];
+      player.adapter.play = () => { playCalls += 1; };
+      player.adapter.seekTo = (...args) => { seekCalls.push(args); };
       player.playerState = 1;
       player.stageRevealed = true;
       const cycles = [];
@@ -273,8 +276,15 @@ try {
         controlLoading: player.dom.play.classList.contains("yvsl-is-loading"),
         controlText: player.dom.play.textContent
       };
+      const nativeEnd = player.adapter.player.config.playerVars.end;
       player.destroy();
-      return { cycles, settled };
+      return {
+        cycles,
+        settled,
+        playCalls,
+        seekCalls,
+        nativeEnd
+      };
     });
     assert.equal(seamlessLoop.cycles.length, 3, `${name}: three loop restarts tested`);
     for (const [index, cycle] of seamlessLoop.cycles.entries()) {
@@ -289,6 +299,9 @@ try {
     assert.equal(seamlessLoop.settled.loopRestarting, false, `${name}: playing clears the loop restart state`);
     assert.equal(seamlessLoop.settled.controlLoading, false, `${name}: settled loop remains free of loading UI`);
     assert.equal(seamlessLoop.settled.controlText, "Ⅱ", `${name}: settled loop remains in playing UI`);
+    assert.equal(seamlessLoop.playCalls, 0, `${name}: an actively playing loop never calls playVideo again`);
+    assert.deepEqual(seamlessLoop.seekCalls, [[10, true], [10, true], [10, true]], `${name}: loop performs a final seek without replaying the video`);
+    assert.ok(seamlessLoop.nativeEnd >= 18, `${name}: native YouTube end is only a safety boundary after the logical loop end`);
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.evaluate(() => window.mainPlayer.play());
     await page.waitForFunction(() => window.mainPlayer.getState().playerState === 1);

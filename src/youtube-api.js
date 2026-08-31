@@ -103,7 +103,7 @@ export class YouTubeAdapter {
   isMuted() { return Boolean(this.player?.isMuted?.()); }
   setVolume(value) { this.player?.setVolume?.(value); }
   getVolume() { return Number(this.player?.getVolume?.() ?? 100); }
-  seekTo(seconds) { this.player?.seekTo?.(seconds, true); }
+  seekTo(seconds, allowSeekAhead = true) { this.player?.seekTo?.(seconds, allowSeekAhead); }
   getCurrentTime() { return Number(this.player?.getCurrentTime?.() ?? 0); }
   getDuration() { return Number(this.player?.getDuration?.() ?? 0); }
   getState() { return Number(this.player?.getPlayerState?.() ?? -1); }

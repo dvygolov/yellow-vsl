@@ -1,4 +1,4 @@
-/*! YellowVSL v1.7.3 | MIT License | https://github.com/dvygolov/yellow-vsl */
+/*! YellowVSL v1.7.4 | MIT License | https://github.com/dvygolov/yellow-vsl */
 (() => {
   var __defProp = Object.defineProperty;
   var __export = (target, all) => {
@@ -763,8 +763,8 @@
     getVolume() {
       return Number(this.player?.getVolume?.() ?? 100);
     }
-    seekTo(seconds) {
-      this.player?.seekTo?.(seconds, true);
+    seekTo(seconds, allowSeekAhead = true) {
+      this.player?.seekTo?.(seconds, allowSeekAhead);
     }
     getCurrentTime() {
       return Number(this.player?.getCurrentTime?.() ?? 0);
@@ -930,7 +930,10 @@
           fs: 0,
           start: Math.floor(this.options.playback.start)
         };
-        if (this.options.playback.end != null) playerVars.end = Math.floor(this.options.playback.end);
+        if (this.options.playback.end != null) {
+          const loopSafetyGap = this.options.playback.loop ? Math.max(2, this.options.playback.rate) : 0;
+          playerVars.end = Math.ceil(this.options.playback.end + loopSafetyGap);
+        }
         if (this.options.captions.enabled === true) playerVars.cc_load_policy = 1;
         if (this.options.captions.language) playerVars.cc_lang_pref = this.options.captions.language;
         if (origin) playerVars.origin = origin;
@@ -1382,7 +1385,8 @@
     }
     _startTicker() {
       if (this.tickTimer) return;
-      this.tickTimer = window.setInterval(() => this._tick(), 250);
+      const interval = this.options.playback.loop ? 50 : 250;
+      this.tickTimer = window.setInterval(() => this._tick(), interval);
     }
     _stopTicker() {
       if (!this.tickTimer) return;
@@ -1460,7 +1464,8 @@
       if (this.loopRestarting && this.playerState === YT_STATE.PLAYING && this.timeline.current >= loopSettledAt) {
         this.loopRestarting = false;
       }
-      if (this.timeline.duration && this.timeline.current >= this.timeline.duration - 0.2) {
+      const endTolerance = this.options.playback.loop ? Math.max(0.08, this.timeline.rate * 0.06) : 0.2;
+      if (this.timeline.duration && this.timeline.current >= this.timeline.duration - endTolerance) {
         this._complete();
       }
       this._updateUi();
@@ -1484,13 +1489,14 @@
       this._updateTimedItems();
       this._emit("complete");
       if (this.options.playback.loop) {
+        const wasPlaying = this.playerState === YT_STATE.PLAYING;
         this.completed = false;
         this.loopRestarting = true;
-        this.adapter.seekTo(this.options.playback.start);
+        this.adapter.seekTo(this.options.playback.start, true);
         this.timeline.current = 0;
         this.timeline.resetClock();
         this._syncMutedIntent();
-        this.adapter.play();
+        if (!wasPlaying) this.adapter.play();
       } else {
         this.loopRestarting = false;
         this.adapter.pause();
@@ -2002,7 +2008,7 @@
   }
 
   // src/index.js
-  var version = "1.7.3";
+  var version = "1.7.4";
   var autoInstances = /* @__PURE__ */ new WeakMap();
   function create(target, options = {}) {
     return new YellowVSLPlayer(target, options);

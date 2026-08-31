@@ -90,7 +90,18 @@ try {
       window.liveLoopObserver.observe(player.dom.posterPlay, { attributes: true, attributeFilter: ["class"] });
       inspect();
     });
-    await page.waitForFunction(() => window.liveLoopCompletions >= 3, { timeout: 30000 });
+    const nativeSpinner = page.frameLocator("#live-loop iframe").locator(".ytp-spinner");
+    const nativeSpinnerEvents = [];
+    const loopDeadline = Date.now() + 30000;
+    while (Date.now() < loopDeadline) {
+      const loopSnapshot = await page.evaluate(() => ({
+        completions: window.liveLoopCompletions,
+        currentTime: window.liveLoopPlayer.getState().currentTime
+      }));
+      if (loopSnapshot.completions >= 3) break;
+      if (await nativeSpinner.isVisible()) nativeSpinnerEvents.push(loopSnapshot);
+      await page.waitForTimeout(50);
+    }
     const liveLoop = await page.evaluate(() => {
       window.liveLoopObserver.disconnect();
       const state = window.liveLoopPlayer.getState();
@@ -102,8 +113,10 @@ try {
         currentTime: state.currentTime
       };
     });
-    assert.ok(liveLoop.completions >= 3, `${name}: real YouTube clip completes three loop cycles`);
+    liveLoop.nativeSpinnerEvents = nativeSpinnerEvents;
+    assert.ok(liveLoop.completions >= 3, `${name}: real YouTube clip completes three loop cycles (${JSON.stringify(liveLoop)})`);
     assert.equal(liveLoop.loadingObserved, false, `${name}: real YouTube loop restarts never expose loading UI (${JSON.stringify(liveLoop.loadingEvents)})`);
+    assert.deepEqual(liveLoop.nativeSpinnerEvents, [], `${name}: real YouTube loop never exposes its native spinner`);
     assert.equal(liveLoop.playing, true, `${name}: real YouTube loop keeps playing after three cycles`);
     assert.deepEqual(errors, [], `${name}: no page errors`);
     results.push(`${name}: captions ready and 3 seamless YouTube loops completed, duration ${Math.round(state.duration)}s`);

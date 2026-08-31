@@ -82,12 +82,6 @@ const popupPlayer = YellowVSL.create("#popup-player", {
 
 window.yellowVslSite = { heroPlayer, examplePlayer, fragmentPlayer, fastProgressPlayer, externalCtaPlayer, popupPlayer };
 
-document.querySelector("#example-unmute").addEventListener("click", (event) => {
-  examplePlayer.unmute(true);
-  examplePlayer.play();
-  event.currentTarget.hidden = true;
-}, { once: true });
-document.querySelector("#fragment-start").addEventListener("click", () => fragmentPlayer.play());
 for (const button of document.querySelectorAll("[data-copy-target]")) {
   button.addEventListener("click", async () => {
     try {
