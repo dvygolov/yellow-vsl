@@ -30,7 +30,11 @@ export const STYLES = `
 }
 .yvsl-player-host { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; }
 .yvsl-player-host > div, .yvsl-player-host iframe, .yvsl-stage > iframe { width: 100% !important; height: 100% !important; display: block; border: 0; pointer-events: none !important; }
-.yvsl-root--clean-youtube .yvsl-stage > iframe.yvsl-player-host { top: -1000px !important; bottom: auto !important; height: calc(100% + 2000px) !important; }
+.yvsl-loop-mirror { position: absolute; inset: 0; z-index: 0; overflow: hidden; opacity: 0; pointer-events: none; }
+.yvsl-loop-mirror--visible { opacity: 1; }
+.yvsl-loop-mirror .yvsl-player-host, .yvsl-loop-mirror iframe { width: 100% !important; height: 100% !important; display: block; border: 0; pointer-events: none !important; }
+.yvsl-root--clean-youtube .yvsl-stage > iframe.yvsl-player-host,
+.yvsl-root--clean-youtube .yvsl-loop-mirror > iframe.yvsl-player-host { top: -1000px !important; bottom: auto !important; height: calc(100% + 2000px) !important; }
 .yvsl-stage-interaction { position: absolute; inset: 0; z-index: 1; }
 .yvsl-stage-interaction[role="button"] { cursor: pointer; }
 .yvsl-stage-interaction:focus-visible { outline: 3px solid color-mix(in srgb, var(--yvsl-accent) 70%, white); outline-offset: -5px; }

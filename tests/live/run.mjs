@@ -90,16 +90,27 @@ try {
       window.liveLoopObserver.observe(player.dom.posterPlay, { attributes: true, attributeFilter: ["class"] });
       inspect();
     });
-    const nativeSpinner = page.frameLocator("#live-loop iframe").locator(".ytp-spinner");
+    const youtubeFrame = page.frameLocator("#live-loop iframe");
+    const nativeSpinner = youtubeFrame.locator(".player-controls-spinner .spinner");
     const nativeSpinnerEvents = [];
     const loopDeadline = Date.now() + 30000;
     while (Date.now() < loopDeadline) {
       const loopSnapshot = await page.evaluate(() => ({
         completions: window.liveLoopCompletions,
-        currentTime: window.liveLoopPlayer.getState().currentTime
+        currentTime: window.liveLoopPlayer.getState().currentTime,
+        playerState: window.liveLoopPlayer.getState().playerState,
+        mirrorVisible: window.liveLoopPlayer.dom.loopMirror.classList.contains("yvsl-loop-mirror--visible")
       }));
       if (loopSnapshot.completions >= 3) break;
-      if (await nativeSpinner.isVisible()) nativeSpinnerEvents.push(loopSnapshot);
+      const playerRoot = youtubeFrame.locator(".html5-video-player").first();
+      const playerClass = await playerRoot.count()
+        ? await playerRoot.getAttribute("class", { timeout: 500 }).catch(() => null)
+        : null;
+      const bufferingMode = playerClass?.split(/\s+/).includes("buffering-mode") === true;
+      const spinnerVisible = await nativeSpinner.isVisible({ timeout: 500 }).catch(() => false);
+      if ((bufferingMode || spinnerVisible) && !loopSnapshot.mirrorVisible) {
+        nativeSpinnerEvents.push({ ...loopSnapshot, bufferingMode, spinnerVisible });
+      }
       await page.waitForTimeout(50);
     }
     const liveLoop = await page.evaluate(() => {

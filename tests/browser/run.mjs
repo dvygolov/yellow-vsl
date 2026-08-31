@@ -300,7 +300,7 @@ try {
     assert.equal(seamlessLoop.settled.controlLoading, false, `${name}: settled loop remains free of loading UI`);
     assert.equal(seamlessLoop.settled.controlText, "Ⅱ", `${name}: settled loop remains in playing UI`);
     assert.equal(seamlessLoop.playCalls, 0, `${name}: an actively playing loop never calls playVideo again`);
-    assert.deepEqual(seamlessLoop.seekCalls, [[10, true], [10, true], [10, true]], `${name}: loop performs a final seek without replaying the video`);
+    assert.deepEqual(seamlessLoop.seekCalls, [[10, true], [10, true], [10, true]], `${name}: an unavailable mirror falls back to the normal YouTube seek`);
     assert.ok(seamlessLoop.nativeEnd >= 18, `${name}: native YouTube end is only a safety boundary after the logical loop end`);
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.evaluate(() => window.mainPlayer.play());

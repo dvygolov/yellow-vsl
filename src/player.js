@@ -71,6 +71,12 @@ export class YellowVSLPlayer {
     this.pendingPlay = false;
     this.loading = false;
     this.loopRestarting = false;
+    this.loopMirror = null;
+    this.loopMirrorState = YT_STATE.UNSTARTED;
+    this.loopMirrorReady = false;
+    this.loopMirrorPreparing = false;
+    this.loopTransitionActive = false;
+    this.loopTransitionToken = 0;
     this.completed = false;
     this.hasStarted = false;
     this.lastActiveAt = 0;
@@ -149,6 +155,24 @@ export class YellowVSLPlayer {
         }
       });
       await this.adapter.mount();
+      if (this.options.playback.loop) {
+        this.loopMirror = adapterFactory({
+          element: this.dom.loopMirrorHost,
+          videoId: this.videoId,
+          playerVars,
+          events: {
+            stateChange: (state) => { this.loopMirrorState = state; },
+            error: () => {
+              this.loopMirrorReady = false;
+              this.loopMirrorPreparing = false;
+            }
+          }
+        });
+        await this.loopMirror.mount();
+        this.loopMirror.mute();
+        this.loopMirror.setPlaybackRate(this.options.playback.rate);
+        if (this.playerState === YT_STATE.PLAYING) this._prepareLoopMirror();
+      }
       return this;
     } catch (error) {
       this._showError(error?.message || this.options.locale.genericError, "api");
@@ -166,6 +190,9 @@ export class YellowVSLPlayer {
     const message = element("div", "yvsl-message", { hidden: true, "aria-live": "polite" });
     const stage = element("div", "yvsl-stage");
     const playerHost = element("div", "yvsl-player-host", { id: `${this.id}-player` });
+    const loopMirror = element("div", "yvsl-loop-mirror", { "aria-hidden": "true" });
+    const loopMirrorHost = element("div", "yvsl-player-host", { id: `${this.id}-loop-mirror` });
+    loopMirror.append(loopMirrorHost);
     const stageInteraction = element("div", "yvsl-stage-interaction", {
       role: this.options.stage.clickToToggle ? "button" : null,
       tabindex: this.options.stage.clickToToggle ? "0" : null,
@@ -186,7 +213,7 @@ export class YellowVSLPlayer {
     const bottomLeft = element("div", "yvsl-zone yvsl-zone--corner yvsl-zone--bottom-left");
     const bottomRight = element("div", "yvsl-zone yvsl-zone--corner yvsl-zone--bottom-right");
     stageOverlay.append(topLeft, topRight, bottomLeft, bottomRight);
-    stage.append(playerHost, stageInteraction, poster, stageOverlay);
+    stage.append(playerHost, loopMirror, stageInteraction, poster, stageOverlay);
 
     const error = element("div", "yvsl-error", { hidden: true, role: "alert" });
     const controls = element("div", "yvsl-controls");
@@ -219,7 +246,7 @@ export class YellowVSLPlayer {
     root.append(stickyClose, above, message, stage, error, controls, below);
     this.mount.replaceChildren(sentinel, root);
 
-    this.dom = { root, sentinel, above, message, stage, playerHost, stageInteraction, poster, posterImage, posterPlay, stageOverlay, topLeft, topRight, bottomLeft, bottomRight, error, controls, play, volume, captions, progress, time, speed, fullscreen, stickyClose, below };
+    this.dom = { root, sentinel, above, message, stage, playerHost, loopMirror, loopMirrorHost, stageInteraction, poster, posterImage, posterPlay, stageOverlay, topLeft, topRight, bottomLeft, bottomRight, error, controls, play, volume, captions, progress, time, speed, fullscreen, stickyClose, below };
     this._updateYoutubeUiMode();
 
     this._listen(play, "click", () => this.playerState === YT_STATE.PLAYING ? this.pause() : this.play());
@@ -436,6 +463,7 @@ export class YellowVSLPlayer {
         }
       }
       this._startTicker();
+      this._prepareLoopMirror();
       this._emit("play");
     } else {
       this.stageWarmupBypassNextPlay = false;
@@ -757,16 +785,128 @@ export class YellowVSLPlayer {
       const wasPlaying = this.playerState === YT_STATE.PLAYING;
       this.completed = false;
       this.loopRestarting = true;
-      this.adapter.seekTo(this.options.playback.start, true);
+      if (!this._startMirroredLoopTransition()) {
+        this.adapter.seekTo(this.options.playback.start, true);
+      }
       this.timeline.current = 0;
       this.timeline.resetClock();
-      this._syncMutedIntent();
+      if (!this.loopTransitionActive) this._syncMutedIntent();
       if (!wasPlaying) this.adapter.play();
     } else {
       this.loopRestarting = false;
       this.adapter.pause();
       this._saveProgress({ position: 0 });
     }
+  }
+
+  _prepareLoopMirror() {
+    if (!this.options.playback.loop || !this.loopMirror || this.loopMirrorReady || this.loopMirrorPreparing || this.loopTransitionActive) return;
+    this.loopMirrorPreparing = true;
+    const token = ++this.loopTransitionToken;
+    const mirror = this.loopMirror;
+    const start = this.options.playback.start;
+    mirror.mute();
+    mirror.setVolume?.(this.adapter?.getVolume?.() ?? 100);
+    mirror.setPlaybackRate?.(this.timeline.rate);
+    mirror.seekTo(start, true);
+    mirror.play();
+    const startedAt = Date.now();
+    const inspect = () => {
+      if (this.destroyed || token !== this.loopTransitionToken || this.loopTransitionActive) return;
+      const current = mirror.getCurrentTime?.() ?? start;
+      if (mirror.getState?.() === YT_STATE.PLAYING && current >= start + 0.04) {
+        mirror.pause();
+        this.loopMirrorReady = true;
+        this.loopMirrorPreparing = false;
+        return;
+      }
+      if (Date.now() - startedAt >= 3500) {
+        mirror.pause();
+        this.loopMirrorReady = false;
+        this.loopMirrorPreparing = false;
+        return;
+      }
+      window.setTimeout(inspect, 30);
+    };
+    window.setTimeout(inspect, 30);
+  }
+
+  _startMirroredLoopTransition() {
+    if (!this.loopMirror?.play || !this.loopMirrorReady || this.loopTransitionActive) return false;
+    const primary = this.adapter;
+    const mirror = this.loopMirror;
+    const start = this.options.playback.start;
+    const shouldBeMuted = this._isMuted();
+    const token = ++this.loopTransitionToken;
+    const mirrorStart = mirror.getCurrentTime?.() ?? start;
+    this.loopMirrorReady = false;
+    this.loopMirrorPreparing = false;
+    this.loopTransitionActive = true;
+    mirror.setVolume?.(primary.getVolume?.() ?? 100);
+    mirror.setPlaybackRate?.(this.timeline.rate);
+    mirror.mute();
+    mirror.play();
+    const startedAt = Date.now();
+
+    const restorePrimary = () => {
+      if (token !== this.loopTransitionToken) return;
+      this.dom.loopMirror.classList.remove("yvsl-loop-mirror--visible");
+      mirror.mute();
+      mirror.pause();
+      if (shouldBeMuted) primary.mute();
+      else primary.unmute();
+      this.loopTransitionActive = false;
+      window.setTimeout(() => this._prepareLoopMirror(), 80);
+    };
+
+    const waitForPrimary = () => {
+      if (this.destroyed || token !== this.loopTransitionToken) return;
+      const current = primary.getCurrentTime?.() ?? start;
+      const ready = primary.getState?.() === YT_STATE.PLAYING && current >= start && current < start + 1.5;
+      if (ready || Date.now() - startedAt >= 3000) {
+        restorePrimary();
+        return;
+      }
+      window.setTimeout(waitForPrimary, 30);
+    };
+
+    const revealMirror = () => {
+      if (this.destroyed || token !== this.loopTransitionToken) return;
+      const current = mirror.getCurrentTime?.() ?? mirrorStart;
+      const ready = mirror.getState?.() === YT_STATE.PLAYING && current >= mirrorStart + 0.03;
+      if (ready) {
+        if (!shouldBeMuted) {
+          primary.mute();
+          mirror.unmute();
+        }
+        this.dom.loopMirror.classList.add("yvsl-loop-mirror--visible");
+        primary.seekTo(start, true);
+        window.setTimeout(waitForPrimary, 30);
+        return;
+      }
+      if (Date.now() - startedAt >= 1200) {
+        this.loopTransitionActive = false;
+        mirror.mute();
+        mirror.pause();
+        primary.seekTo(start, true);
+        this._syncMutedIntent();
+        return;
+      }
+      window.setTimeout(revealMirror, 30);
+    };
+
+    window.setTimeout(revealMirror, 30);
+    return true;
+  }
+
+  _cancelLoopTransition() {
+    this.loopTransitionToken += 1;
+    this.loopTransitionActive = false;
+    this.loopMirrorPreparing = false;
+    this.dom.loopMirror?.classList.remove("yvsl-loop-mirror--visible");
+    this.loopMirror?.mute?.();
+    this.loopMirror?.pause?.();
+    this._syncMutedIntent();
   }
 
   _updateUi() {
@@ -823,6 +963,7 @@ export class YellowVSLPlayer {
   _setRate(rate) {
     this.timeline.rate = Number(rate) || 1;
     this.adapter?.setPlaybackRate?.(this.timeline.rate);
+    this.loopMirror?.setPlaybackRate?.(this.timeline.rate);
   }
 
   _startStageWarmup() {
@@ -1168,6 +1309,7 @@ export class YellowVSLPlayer {
     this._stopPlaybackProbe();
     this.loading = false;
     this.loopRestarting = false;
+    this._cancelLoopTransition();
     this._updateUi();
     this.adapter?.pause();
     return this;
@@ -1202,6 +1344,7 @@ export class YellowVSLPlayer {
   mute() {
     this.mutedIntent = true;
     this.adapter?.mute();
+    this.loopMirror?.mute?.();
     this._updateUi();
     return this;
   }
@@ -1210,6 +1353,7 @@ export class YellowVSLPlayer {
     if (restart) this.seek(0);
     this.mutedIntent = false;
     this.adapter?.unmute();
+    if (this.loopTransitionActive) this.loopMirror?.unmute?.();
     this._hideMessage();
     this._updateUi();
     return this;
@@ -1309,6 +1453,7 @@ export class YellowVSLPlayer {
     this._cancelStageWarmup();
     this.stickyObserver?.disconnect();
     this.adapter?.destroy();
+    this.loopMirror?.destroy?.();
     for (const dispose of this.cleanup.splice(0)) dispose();
     for (const [node, originallyHidden] of this.managedRevealElements) {
       node.hidden = originallyHidden;
