@@ -236,6 +236,59 @@ try {
     assert.notEqual(loadingIndicator.requested.transformAfter, loadingIndicator.requested.transformBefore, `${name}: spinner angle changes over time`);
     assert.equal(loadingIndicator.buffering, true, `${name}: buffering keeps loader visible`);
     assert.equal(loadingIndicator.playing, false, `${name}: playing hides loader`);
+
+    const seamlessLoop = await page.evaluate(async () => {
+      const mount = document.createElement("div");
+      mount.id = "seamless-loop";
+      document.body.append(mount);
+      const player = window.YellowVSL.create(mount, {
+        video: "M7lc1UVf-VE",
+        playback: { autoplay: false, resume: false, start: 10, end: 16, loop: true, rate: 1.5 },
+        stage: { revealDelay: 0 }
+      });
+      await player.ready;
+      player.adapter.play = () => {};
+      player.playerState = 1;
+      player.stageRevealed = true;
+      const cycles = [];
+      for (let index = 0; index < 3; index += 1) {
+        player.timeline.current = player.timeline.duration;
+        player._complete();
+        player._onStateChange(3);
+        cycles.push({
+          loopRestarting: player.loopRestarting,
+          internalLoading: player.loading,
+          controlLoading: player.dom.play.classList.contains("yvsl-is-loading"),
+          posterLoading: player.dom.posterPlay.classList.contains("yvsl-is-loading"),
+          controlText: player.dom.play.textContent,
+          controlLabel: player.dom.play.getAttribute("aria-label"),
+          posterHidden: player.dom.poster.hidden
+        });
+        player._onStateChange(1);
+        player.adapter.player.time = 11.1;
+        player._tick();
+      }
+      const settled = {
+        loopRestarting: player.loopRestarting,
+        controlLoading: player.dom.play.classList.contains("yvsl-is-loading"),
+        controlText: player.dom.play.textContent
+      };
+      player.destroy();
+      return { cycles, settled };
+    });
+    assert.equal(seamlessLoop.cycles.length, 3, `${name}: three loop restarts tested`);
+    for (const [index, cycle] of seamlessLoop.cycles.entries()) {
+      assert.equal(cycle.loopRestarting, true, `${name}: loop ${index + 1} is recognized as an internal restart`);
+      assert.equal(cycle.internalLoading, true, `${name}: loop ${index + 1} keeps internal buffering detection`);
+      assert.equal(cycle.controlLoading, false, `${name}: loop ${index + 1} does not show a control loader`);
+      assert.equal(cycle.posterLoading, false, `${name}: loop ${index + 1} does not show a poster loader`);
+      assert.equal(cycle.controlText, "Ⅱ", `${name}: loop ${index + 1} keeps the pause control`);
+      assert.match(cycle.controlLabel, /пауз/i, `${name}: loop ${index + 1} keeps the pause label`);
+      assert.equal(cycle.posterHidden, true, `${name}: loop ${index + 1} keeps the video frame visible`);
+    }
+    assert.equal(seamlessLoop.settled.loopRestarting, false, `${name}: playing clears the loop restart state`);
+    assert.equal(seamlessLoop.settled.controlLoading, false, `${name}: settled loop remains free of loading UI`);
+    assert.equal(seamlessLoop.settled.controlText, "Ⅱ", `${name}: settled loop remains in playing UI`);
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.evaluate(() => window.mainPlayer.play());
     await page.waitForFunction(() => window.mainPlayer.getState().playerState === 1);

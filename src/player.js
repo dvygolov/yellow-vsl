@@ -70,6 +70,7 @@ export class YellowVSLPlayer {
     this.adapterMountPromise = null;
     this.pendingPlay = false;
     this.loading = false;
+    this.loopRestarting = false;
     this.completed = false;
     this.hasStarted = false;
     this.lastActiveAt = 0;
@@ -390,6 +391,17 @@ export class YellowVSLPlayer {
       return;
     }
     this._stopPlaybackProbe();
+    if (this.loopRestarting && state !== YT_STATE.PLAYING) {
+      this.clockConfirmedPlaying = false;
+      this.stageRevealed = true;
+      this.stageWasRevealedBeforeBuffering = false;
+      this._cancelStageWarmup();
+      this._stopTicker();
+      this.timeline.resetClock();
+      this._applySticky();
+      this._updateUi();
+      return;
+    }
     if (state === YT_STATE.PLAYING && confirmedByClock && previousState === YT_STATE.PLAYING) {
       this.clockConfirmedPlaying = false;
       this.loading = false;
@@ -612,6 +624,7 @@ export class YellowVSLPlayer {
     this._stopPlaybackProbe();
     this._stopCaptionProbe();
     this.loading = false;
+    this.loopRestarting = false;
     this.dom.error.textContent = message;
     this.dom.error.hidden = false;
     this.dom.controls.hidden = true;
@@ -687,13 +700,23 @@ export class YellowVSLPlayer {
     }
     if (!this.timeline.duration) this._refreshDuration();
 
-    const observed = this.timeline.observe(this.adapter.getCurrentTime(), {
+    const sourceTime = this.adapter.getCurrentTime();
+    if (this.loopRestarting && this.timeline.duration && sourceTime - this.timeline.start > this.timeline.duration * 0.75) {
+      this._updateUi();
+      return;
+    }
+    const observed = this.timeline.observe(sourceTime, {
       playing: this.playerState === YT_STATE.PLAYING
     });
     if (observed.blocked) {
       this.adapter.seekTo(observed.correctionSourceTime);
       this.timeline.current = this.timeline.maxWatched;
       this.timeline.resetClock();
+    }
+
+    const loopSettledAt = Math.min(1, this.timeline.duration * 0.25);
+    if (this.loopRestarting && this.playerState === YT_STATE.PLAYING && this.timeline.current >= loopSettledAt) {
+      this.loopRestarting = false;
     }
 
     if (this.timeline.duration && this.timeline.current >= this.timeline.duration - 0.2) {
@@ -715,7 +738,7 @@ export class YellowVSLPlayer {
   }
 
   _complete() {
-    if (this.completed || !this.timeline.duration) return;
+    if (this.completed || this.loopRestarting || !this.timeline.duration) return;
     this.completed = true;
     this.timeline.current = this.timeline.duration;
     this.timeline.grant(this.timeline.duration);
@@ -725,12 +748,14 @@ export class YellowVSLPlayer {
 
     if (this.options.playback.loop) {
       this.completed = false;
+      this.loopRestarting = true;
       this.adapter.seekTo(this.options.playback.start);
       this.timeline.current = 0;
       this.timeline.resetClock();
       this._syncMutedIntent();
       this.adapter.play();
     } else {
+      this.loopRestarting = false;
       this.adapter.pause();
       this._saveProgress({ position: 0 });
     }
@@ -738,11 +763,14 @@ export class YellowVSLPlayer {
 
   _updateUi() {
     const playing = this.playerState === YT_STATE.PLAYING;
-    const displayingVideo = playing || (this.playerState === YT_STATE.BUFFERING && this.stageWasRevealedBeforeBuffering);
-    this.dom.play.textContent = playing ? "Ⅱ" : "▶";
-    this.dom.play.classList.toggle("yvsl-is-loading", this.loading);
-    this.dom.posterPlay.classList.toggle("yvsl-is-loading", this.loading);
-    this.dom.play.title = this.loading ? this.options.locale.loading : (playing ? this.options.locale.pause : this.options.locale.play);
+    const seamlessLoopTransition = this.loopRestarting && this.playerState !== YT_STATE.PLAYING;
+    const presentingAsPlaying = playing || seamlessLoopTransition;
+    const showLoading = this.loading && !seamlessLoopTransition;
+    const displayingVideo = presentingAsPlaying || (this.playerState === YT_STATE.BUFFERING && this.stageWasRevealedBeforeBuffering);
+    this.dom.play.textContent = presentingAsPlaying ? "Ⅱ" : "▶";
+    this.dom.play.classList.toggle("yvsl-is-loading", showLoading);
+    this.dom.posterPlay.classList.toggle("yvsl-is-loading", showLoading);
+    this.dom.play.title = showLoading ? this.options.locale.loading : (presentingAsPlaying ? this.options.locale.pause : this.options.locale.play);
     this.dom.play.setAttribute("aria-label", this.dom.play.title);
     this.dom.stageInteraction.setAttribute("aria-label", this.dom.play.title);
     this.dom.poster.hidden = this.options.stage.poster === false || (displayingVideo && this.stageRevealed);
@@ -1131,6 +1159,7 @@ export class YellowVSLPlayer {
     this.pendingPlay = false;
     this._stopPlaybackProbe();
     this.loading = false;
+    this.loopRestarting = false;
     this._updateUi();
     this.adapter?.pause();
     return this;

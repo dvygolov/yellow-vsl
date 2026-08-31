@@ -21,7 +21,13 @@ try {
         playback: { autoplay: false, resume: false },
         captions: { enabled: false, language: "ru" }
       });
-      await Promise.all([window.livePlayer.ready, window.livePopupPlayer.ready]);
+      window.liveLoopPlayer = window.YellowVSL.create("#live-loop", {
+        video: "Y7jHPB7FjhM",
+        playback: { autoplay: false, resume: false, start: 10, end: 16, loop: true, rate: 1.5 },
+        stage: { revealDelay: 0 },
+        controls: { captions: false }
+      });
+      await Promise.all([window.livePlayer.ready, window.livePopupPlayer.ready, window.liveLoopPlayer.ready]);
     }, { timeout: 30000 });
     await page.waitForSelector("#live iframe[src*='youtube.com/embed']", { timeout: 30000 });
     const state = await page.evaluate(() => window.livePlayer.getState());
@@ -58,8 +64,49 @@ try {
     assert.equal(await page.locator(".yvsl-popup-panel .yvsl-captions").isVisible(), true, `${name}: popup CC button appears for the same video`);
     assert.equal(await page.locator(".yvsl-popup-panel .yvsl-progress").isVisible(), true, `${name}: popup timeline remains visible with CC control`);
     await page.locator(".yvsl-popup-close").click();
+
+    await page.locator("#live-loop .yvsl-play").click();
+    await page.waitForFunction(() => window.liveLoopPlayer.getState().playerState === 1, { timeout: 15000 });
+    await page.waitForFunction(() => window.liveLoopPlayer.getState().currentTime > 0.5, { timeout: 15000 });
+    await page.evaluate(() => {
+      window.liveLoopCompletions = 0;
+      window.liveLoopLoadingObserved = false;
+      window.liveLoopLoadingEvents = [];
+      const player = window.liveLoopPlayer;
+      const inspect = () => {
+        if (player.dom.play.classList.contains("yvsl-is-loading") || player.dom.posterPlay.classList.contains("yvsl-is-loading")) {
+          window.liveLoopLoadingObserved = true;
+          window.liveLoopLoadingEvents.push({
+            completions: window.liveLoopCompletions,
+            currentTime: player.getState().currentTime,
+            playerState: player.getState().playerState,
+            loopRestarting: player.loopRestarting
+          });
+        }
+      };
+      player.dom.root.addEventListener("yellowvsl:complete", () => { window.liveLoopCompletions += 1; });
+      window.liveLoopObserver = new MutationObserver(inspect);
+      window.liveLoopObserver.observe(player.dom.play, { attributes: true, attributeFilter: ["class"] });
+      window.liveLoopObserver.observe(player.dom.posterPlay, { attributes: true, attributeFilter: ["class"] });
+      inspect();
+    });
+    await page.waitForFunction(() => window.liveLoopCompletions >= 3, { timeout: 30000 });
+    const liveLoop = await page.evaluate(() => {
+      window.liveLoopObserver.disconnect();
+      const state = window.liveLoopPlayer.getState();
+      return {
+        completions: window.liveLoopCompletions,
+        loadingObserved: window.liveLoopLoadingObserved,
+        loadingEvents: window.liveLoopLoadingEvents,
+        playing: state.playerState === 1 || window.liveLoopPlayer.loopRestarting,
+        currentTime: state.currentTime
+      };
+    });
+    assert.ok(liveLoop.completions >= 3, `${name}: real YouTube clip completes three loop cycles`);
+    assert.equal(liveLoop.loadingObserved, false, `${name}: real YouTube loop restarts never expose loading UI (${JSON.stringify(liveLoop.loadingEvents)})`);
+    assert.equal(liveLoop.playing, true, `${name}: real YouTube loop keeps playing after three cycles`);
     assert.deepEqual(errors, [], `${name}: no page errors`);
-    results.push(`${name}: inline and popup captions ready, duration ${Math.round(state.duration)}s`);
+    results.push(`${name}: captions ready and 3 seamless YouTube loops completed, duration ${Math.round(state.duration)}s`);
     await browser.close();
   }
 } finally {
