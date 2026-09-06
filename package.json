@@ -1,6 +1,6 @@
 {
   "name": "yellow-vsl",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "description": "Бесплатный VSL-плеер для YouTube на чистом JavaScript",
   "type": "module",
   "license": "MIT",
@@ -39,7 +39,8 @@
     "test:unit": "node --test tests/unit/*.test.mjs",
     "test:browser": "node tests/browser/run.mjs && node tests/browser/regressions.mjs && node tests/browser/loop-inspection.mjs",
     "test:site": "node tests/site/run.mjs",
-    "test:live": "node tests/live/run.mjs"
+    "test:live": "node tests/live/run.mjs",
+    "test:live:popup": "node tests/live/popup.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.25.9",

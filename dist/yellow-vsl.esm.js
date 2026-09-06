@@ -1,4 +1,4 @@
-/*! YellowVSL v1.8.1 | MIT License | https://github.com/dvygolov/yellow-vsl */
+/*! YellowVSL v1.8.2 | MIT License | https://github.com/dvygolov/yellow-vsl */
 
 // src/utils.js
 var DEFAULT_PROGRESS_POINTS = Object.freeze([
@@ -2222,6 +2222,8 @@ var YellowVSLPlayer = class {
   _setupPopup() {
     const popup = this.options.popup;
     if (!popup) return;
+    this._createPopup();
+    this.dom.popupPanel.append(this.dom.root);
     this.dom.root.classList.add("yvsl-root--popup-idle");
     this.dom.root.setAttribute("aria-hidden", "true");
     if (typeof popup === "object" && popup.trigger) {
@@ -2428,7 +2430,6 @@ var YellowVSLPlayer = class {
     this.dom.root.classList.remove("yvsl-root--sticky");
     this.dom.root.classList.remove("yvsl-root--popup-idle");
     this.dom.root.removeAttribute("aria-hidden");
-    this.dom.popupPanel.append(this.dom.root);
     this.dom.popupBackdrop.hidden = false;
     this.modal.acquire();
     this.dom.popupClose.focus();
@@ -2443,7 +2444,6 @@ var YellowVSLPlayer = class {
     this.pendingPlay = false;
     this.pause();
     this.popupOpen = false;
-    this.mount.append(this.dom.root);
     this.dom.popupBackdrop.hidden = true;
     this.modal.release();
     if (this.options.popup) {
@@ -2501,7 +2501,7 @@ var YellowVSLPlayer = class {
 // package.json
 var package_default = {
   name: "yellow-vsl",
-  version: "1.8.1",
+  version: "1.8.2",
   description: "\u0411\u0435\u0441\u043F\u043B\u0430\u0442\u043D\u044B\u0439 VSL-\u043F\u043B\u0435\u0435\u0440 \u0434\u043B\u044F YouTube \u043D\u0430 \u0447\u0438\u0441\u0442\u043E\u043C JavaScript",
   type: "module",
   license: "MIT",
@@ -2540,7 +2540,8 @@ var package_default = {
     "test:unit": "node --test tests/unit/*.test.mjs",
     "test:browser": "node tests/browser/run.mjs && node tests/browser/regressions.mjs && node tests/browser/loop-inspection.mjs",
     "test:site": "node tests/site/run.mjs",
-    "test:live": "node tests/live/run.mjs"
+    "test:live": "node tests/live/run.mjs",
+    "test:live:popup": "node tests/live/popup.mjs"
   },
   devDependencies: {
     esbuild: "^0.25.9",

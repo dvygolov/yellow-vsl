@@ -536,7 +536,7 @@ try {
     assert.match(await demoPage.locator("#error-mount").textContent(), /корректный URL/i, `${name}: invalid URL rendered in component`);
 
     await demoPage.evaluate(() => window.demo.popupPlayer._onPlayerError(153));
-    assert.match(await demoPage.locator("#popup-player .yvsl-error").textContent(), /HTTP Referer/i, `${name}: Error 153 guidance`);
+    assert.match(await demoPage.evaluate(() => window.demo.popupPlayer.dom.error.textContent), /HTTP Referer/i, `${name}: Error 153 guidance`);
 
     await demoPage.goto(`${server.origin}/demo/?show-file-warning=1`, { waitUntil: "domcontentloaded" });
     assert.equal(await demoPage.locator("#file-warning").isVisible(), true, `${name}: file protocol guidance visible`);

@@ -3,6 +3,18 @@ import { chromium, firefox, webkit } from "playwright";
 import { startStaticServer } from "../helpers/server.mjs";
 
 const cases = [
+  ["opening and closing popup preserves its iframe browsing context", async () => {
+    const p = await make({ popup: { preload: true } });
+    const frame = document.createElement("iframe");
+    const loaded = new Promise(resolve => frame.onload = resolve);
+    frame.srcdoc = "<!doctype html><p>loaded</p>";
+    p.dom.stage.append(frame);
+    await loaded;
+    frame.contentWindow.sessionMarker = "preserved";
+    p.open(); p.close(); p.open(); p.close();
+    await sleep(100);
+    return frame.contentWindow.sessionMarker === "preserved";
+  }],
   ["popup close pauses locally even when YouTube omits its state event", async () => {
     const p = await make({ popup: { preload: true } });
     p.open(); p.play(); await sleep(50);

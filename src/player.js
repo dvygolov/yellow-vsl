@@ -938,6 +938,10 @@ export class YellowVSLPlayer {
   _setupPopup() {
     const popup = this.options.popup;
     if (!popup) return;
+    this._createPopup();
+    // Keep the iframe in one connected parent throughout its lifetime.
+    // Reparenting a loaded iframe resets YouTube and can discard play commands.
+    this.dom.popupPanel.append(this.dom.root);
     this.dom.root.classList.add("yvsl-root--popup-idle");
     this.dom.root.setAttribute("aria-hidden", "true");
     if (typeof popup === "object" && popup.trigger) {
@@ -1078,8 +1082,8 @@ export class YellowVSLPlayer {
     this.loading = false;
     this.loop.restarting = false;
     this.loop.cancel();
-    // A popup moves its iframe on close; YouTube can omit the PAUSED callback.
-    // Settle local state and timers before that move, without waiting for the API.
+    // YouTube can omit or delay PAUSED. Settle local state and timers before
+    // hiding a popup, without waiting for the API callback.
     this._onStateChange(YT_STATE.PAUSED);
     this._updateUi();
     this.adapter?.pause();
@@ -1157,7 +1161,6 @@ export class YellowVSLPlayer {
     this.dom.root.classList.remove("yvsl-root--sticky");
     this.dom.root.classList.remove("yvsl-root--popup-idle");
     this.dom.root.removeAttribute("aria-hidden");
-    this.dom.popupPanel.append(this.dom.root);
     this.dom.popupBackdrop.hidden = false;
     this.modal.acquire();
     this.dom.popupClose.focus();
@@ -1172,7 +1175,6 @@ export class YellowVSLPlayer {
     this.pendingPlay = false;
     this.pause();
     this.popupOpen = false;
-    this.mount.append(this.dom.root);
     this.dom.popupBackdrop.hidden = true;
     this.modal.release();
     if (this.options.popup) {
