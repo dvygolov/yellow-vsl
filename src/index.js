@@ -1,20 +1,23 @@
 import { optionsFromDataset } from "./config.js";
 import { YellowVSLPlayer } from "./player.js";
+import packageInfo from "../package.json" with { type: "json" };
 
-export const version = "1.7.4";
+export const version = packageInfo.version;
 const autoInstances = new WeakMap();
 
+/** @param {string | Element} target @param {import('../types/index.js').PlayerOptions} options */
 export function create(target, options = {}) {
   return new YellowVSLPlayer(target, options);
 }
 
+/** Reuse live declarative players; recreate instances that have been destroyed. */
 export function autoInit(root = document) {
   const nodes = [];
   if (root instanceof Element && root.matches("[data-yellow-vsl]")) nodes.push(root);
   nodes.push(...root.querySelectorAll("[data-yellow-vsl]"));
 
   return nodes.map((node) => {
-    if (autoInstances.has(node)) return autoInstances.get(node);
+    if (autoInstances.has(node) && !autoInstances.get(node).destroyed) return autoInstances.get(node);
     try {
       const instance = create(node, optionsFromDataset(node));
       autoInstances.set(node, instance);

@@ -1,12 +1,12 @@
 const API_URL = "https://www.youtube.com/iframe_api";
-let apiPromise = null;
+const apiLoads = new WeakMap();
 
 export function loadYouTubeAPI(win = globalThis.window) {
   if (!win?.document) return Promise.reject(new Error("YouTube API доступен только в браузере"));
   if (win.YT?.Player) return Promise.resolve(win.YT);
-  if (apiPromise) return apiPromise;
+  if (apiLoads.has(win)) return apiLoads.get(win);
 
-  apiPromise = new Promise((resolve, reject) => {
+  const apiPromise = new Promise((resolve, reject) => {
     const previousReady = win.onYouTubeIframeAPIReady;
     let settled = false;
     let pollTimer;
@@ -38,7 +38,8 @@ export function loadYouTubeAPI(win = globalThis.window) {
         settled = true;
         win.clearInterval(pollTimer);
         win.clearTimeout(timeoutTimer);
-        apiPromise = null;
+        apiLoads.delete(win);
+        script.remove?.();
         reject(new Error("Не удалось загрузить YouTube IFrame API"));
       }, { once: true });
       (win.document.head || win.document.documentElement).append(script);
@@ -49,48 +50,85 @@ export function loadYouTubeAPI(win = globalThis.window) {
       if (settled) return;
       settled = true;
       win.clearInterval(pollTimer);
-      apiPromise = null;
+      apiLoads.delete(win);
+      script.remove?.();
       reject(new Error("YouTube IFrame API не ответил вовремя"));
     }, 20000);
   });
 
+  apiLoads.set(win, apiPromise);
   return apiPromise;
 }
 
 export class YouTubeAdapter {
-  constructor({ element, videoId, playerVars = {}, events = {}, win = globalThis.window }) {
+  constructor({ element, videoId, playerVars = {}, events = {}, win = globalThis.window, timeout = 20000 }) {
     this.element = element;
     this.videoId = videoId;
     this.playerVars = playerVars;
     this.events = events;
     this.win = win;
     this.player = null;
+    this.destroyed = false;
+    this.timeout = timeout;
+    this.cancelMount = null;
+    this.cancelLoad = null;
   }
 
   async mount() {
-    const YT = await loadYouTubeAPI(this.win);
+    if (this.destroyed) throw abortError();
+    let YT;
+    try {
+      YT = await Promise.race([
+        loadYouTubeAPI(this.win),
+        new Promise((resolve, reject) => { this.cancelLoad = () => reject(abortError()); })
+      ]);
+    } finally { this.cancelLoad = null; }
+    if (this.destroyed) throw abortError();
     await new Promise((resolve, reject) => {
       let isReady = false;
-      this.player = new YT.Player(this.element, {
-        videoId: this.videoId,
-        width: "100%",
-        height: "100%",
-        playerVars: this.playerVars,
-        events: {
-          onReady: (event) => {
-            isReady = true;
-            this.events.ready?.(event);
-            resolve();
-          },
-          onStateChange: (event) => this.events.stateChange?.(event.data, event),
-          onPlaybackRateChange: (event) => this.events.rateChange?.(event.data, event),
-          onApiChange: (event) => this.events.apiChange?.(event),
-          onError: (event) => {
-            this.events.error?.(event.data, event);
-            if (!isReady) reject(new Error(`YouTube Player error: ${event.data}`));
+      let settled = false;
+      const clock = this.win.setTimeout ? this.win : globalThis;
+      const finish = (error) => {
+        if (settled) return;
+        settled = true;
+        clock.clearTimeout(timer);
+        this.cancelMount = null;
+        if (error) reject(error); else resolve();
+      };
+      const timer = clock.setTimeout(() => {
+        const error = new Error("YouTube Player не ответил вовремя");
+        error.code = "ready-timeout";
+        finish(error);
+      }, this.timeout);
+      this.cancelMount = () => finish(abortError());
+      try {
+        this.player = new YT.Player(this.element, {
+          videoId: this.videoId,
+          width: "100%",
+          height: "100%",
+          playerVars: this.playerVars,
+          events: {
+            onReady: (event) => {
+              if (this.destroyed || settled) return;
+              isReady = true;
+              try { this.events.ready?.(event); finish(); } catch (error) { finish(error); }
+            },
+            onStateChange: (event) => { if (!this.destroyed) this.events.stateChange?.(event.data, event); },
+            onPlaybackRateChange: (event) => { if (!this.destroyed) this.events.rateChange?.(event.data, event); },
+            onApiChange: (event) => { if (!this.destroyed) this.events.apiChange?.(event); },
+            onAutoplayBlocked: (event) => { if (!this.destroyed) this.events.autoplayBlocked?.(event); },
+            onError: (event) => {
+              if (this.destroyed) return;
+              this.events.error?.(event.data, event);
+              if (!isReady) {
+                const error = new Error(`YouTube Player error: ${event.data}`);
+                error.code = event.data;
+                finish(error);
+              }
+            }
           }
-        }
-      });
+        });
+      } catch (error) { finish(error); }
     });
     return this;
   }
@@ -134,9 +172,18 @@ export class YouTubeAdapter {
     catch { /* The captions module may not be ready yet. */ }
   }
   destroy() {
+    this.destroyed = true;
+    this.cancelLoad?.();
+    this.cancelMount?.();
     this.player?.destroy?.();
     this.player = null;
   }
+}
+
+function abortError() {
+  const error = new Error("YouTube Player initialization cancelled");
+  error.name = "AbortError";
+  return error;
 }
 
 export const YT_STATE = Object.freeze({

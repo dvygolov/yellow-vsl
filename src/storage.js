@@ -56,6 +56,6 @@ export class ProgressStorage {
   }
 }
 
-export function createStorageKey(videoId, start, end) {
-  return `yellowvsl:v1:${videoId}:${Number(start) || 0}:${end == null ? "end" : Number(end)}`;
+export function createStorageKey(videoId, start, end, identity = null) {
+  return `yellowvsl:v2:${JSON.stringify([identity, videoId, start, end])}`;
 }

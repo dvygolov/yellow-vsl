@@ -84,8 +84,12 @@ function normalizeTimedItem(item, index, kind) {
 
 export function normalizeOptions(options = {}) {
   const playback = { ...DEFAULT_OPTIONS.playback, ...(options.playback || {}) };
-  playback.start = Math.max(0, Number(playback.start) || 0);
-  playback.end = playback.end == null ? null : Math.max(playback.start, Number(playback.end) || playback.start);
+  playback.start = Number(playback.start);
+  playback.end = playback.end == null ? null : Number(playback.end);
+  if (!Number.isFinite(playback.start) || playback.start < 0 ||
+      (playback.end != null && (!Number.isFinite(playback.end) || playback.end <= playback.start))) {
+    throw new RangeError("playback.start должен быть неотрицательным, а playback.end — больше start");
+  }
   playback.rate = clamp(playback.rate, 0.25, 2);
   playback.autoplay = playback.autoplay === false ? false : "smart";
   playback.noSeek = playback.noSeek === false ? false : "forward";
@@ -114,6 +118,7 @@ export function normalizeOptions(options = {}) {
     ...DEFAULT_OPTIONS,
     ...options,
     video: options.video,
+    storageKey: typeof options.storageKey === "string" ? options.storageKey.trim() : null,
     playback,
     progress,
     controls,
@@ -163,6 +168,7 @@ export function optionsFromDataset(element) {
 
   return {
     video: dataset.video,
+    storageKey: dataset.storageKey,
     aspectRatio: dataset.aspectRatio,
     playback,
     progress,

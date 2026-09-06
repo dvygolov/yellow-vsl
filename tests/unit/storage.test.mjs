@@ -30,3 +30,17 @@ test("ProgressStorage удаляет просроченную запись", () 
 test("ключ изолирует разные фрагменты одного видео", () => {
   assert.notEqual(createStorageKey("video", 0, null), createStorageKey("video", 10, 20));
 });
+
+test("ключ изолирует экземпляры одинакового видео", () => {
+  assert.notEqual(createStorageKey("video", 0, null, "a"), createStorageKey("video", 0, null, "b"));
+});
+
+test("недоступное или повреждённое хранилище не ломает плеер", () => {
+  const broken = new ProgressStorage({ getItem() { throw new Error("denied"); }, setItem() { throw new Error("quota"); }, removeItem() { throw new Error("denied"); } }, "test");
+  assert.deepEqual(broken.load(), broken.empty());
+  assert.equal(broken.save({}), false);
+  assert.doesNotThrow(() => broken.clear());
+  const memory = new MemoryStorage(); memory.setItem("bad", "{");
+  const malformed = new ProgressStorage(memory, "bad");
+  assert.deepEqual(malformed.load(), malformed.empty());
+});

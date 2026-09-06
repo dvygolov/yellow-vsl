@@ -1,17 +1,21 @@
 import assert from "node:assert/strict";
 import { chromium, firefox, webkit } from "playwright";
 import { startStaticServer } from "../helpers/server.mjs";
+import { inspectVisibleYouTube } from "../helpers/loop-inspection.mjs";
 
 const engines = { chromium, firefox, webkit };
 const server = await startStaticServer();
 const results = [];
+const loopCycles = Number(process.env.LIVE_LOOP_CYCLES || 3);
+assert.ok(Number.isInteger(loopCycles) && loopCycles >= 3);
 
 try {
   for (const [name, engine] of Object.entries(engines)) {
+    if (process.env.LIVE_ENGINE && name !== process.env.LIVE_ENGINE) continue;
     const browser = await engine.launch({ headless: true });
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     const errors = [];
-    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("pageerror", (error) => { errors.push(error.message); console.error(`${name}: ${error.stack}`); });
     await page.goto(`${server.origin}/tests/live/fixture.html`, { waitUntil: "domcontentloaded" });
     await page.evaluate(async () => {
       window.livePlayer = window.YellowVSL.autoInit()[0];
@@ -36,7 +40,7 @@ try {
     await page.locator("#live .yvsl-play").click();
     await page.waitForFunction(() => window.livePlayer.getState().playerState === 1, { timeout: 15000 });
     await page.waitForFunction(() => window.livePlayer.getState().currentTime > 0, { timeout: 15000 });
-    await page.waitForFunction(() => window.livePlayer.captionTracks.length > 0, { timeout: 15000 });
+    await page.waitForFunction(() => window.livePlayer.captions.tracks.length > 0, { timeout: 15000 });
     assert.equal(await page.locator("#live .yvsl-captions").isVisible(), true, `${name}: CC button appears for captioned video`);
     const cleanStageBox = await page.locator("#live .yvsl-stage").boundingBox();
     const cleanIframeBox = await page.locator("#live iframe").boundingBox();
@@ -60,7 +64,7 @@ try {
     assert.equal(await page.evaluate(() => window.livePlayer.getState().captions), false, `${name}: second CC click disables captions`);
     assert.equal(await page.locator("#live .yvsl-root").evaluate((node) => node.classList.contains("yvsl-root--clean-youtube")), true, `${name}: captions off restores clean mode`);
     await page.locator("#live-popup-trigger").click();
-    await page.waitForFunction(() => window.livePopupPlayer.captionTracks.length > 0, { timeout: 15000 });
+    await page.waitForFunction(() => window.livePopupPlayer.captions.tracks.length > 0, { timeout: 15000 });
     assert.equal(await page.locator(".yvsl-popup-panel .yvsl-captions").isVisible(), true, `${name}: popup CC button appears for the same video`);
     assert.equal(await page.locator(".yvsl-popup-panel .yvsl-progress").isVisible(), true, `${name}: popup timeline remains visible with CC control`);
     await page.locator(".yvsl-popup-close").click();
@@ -80,7 +84,7 @@ try {
             completions: window.liveLoopCompletions,
             currentTime: player.getState().currentTime,
             playerState: player.getState().playerState,
-            loopRestarting: player.loopRestarting
+            loopRestarting: player.loop.restarting
           });
         }
       };
@@ -90,26 +94,24 @@ try {
       window.liveLoopObserver.observe(player.dom.posterPlay, { attributes: true, attributeFilter: ["class"] });
       inspect();
     });
-    const youtubeFrame = page.frameLocator("#live-loop iframe");
-    const nativeSpinner = youtubeFrame.locator(".player-controls-spinner .spinner");
     const nativeSpinnerEvents = [];
-    const loopDeadline = Date.now() + 30000;
+    let stableSamples = 0;
+    const loopDeadline = Date.now() + Math.max(30000, loopCycles * 7000);
     while (Date.now() < loopDeadline) {
       const loopSnapshot = await page.evaluate(() => ({
         completions: window.liveLoopCompletions,
         currentTime: window.liveLoopPlayer.getState().currentTime,
         playerState: window.liveLoopPlayer.getState().playerState,
-        mirrorVisible: window.liveLoopPlayer.dom.loopMirror.classList.contains("yvsl-loop-mirror--visible")
+        mirrorVisible: window.liveLoopPlayer.dom.loopMirror.classList.contains("yvsl-loop-mirror--visible"),
+        transitionActive: window.liveLoopPlayer.loop.active,
+        mirrorReady: window.liveLoopPlayer.loop.ready,
+        mirrorPreparing: window.liveLoopPlayer.loop.preparing
       }));
-      if (loopSnapshot.completions >= 3) break;
-      const playerRoot = youtubeFrame.locator(".html5-video-player").first();
-      const playerClass = await playerRoot.count()
-        ? await playerRoot.getAttribute("class", { timeout: 500 }).catch(() => null)
-        : null;
-      const bufferingMode = playerClass?.split(/\s+/).includes("buffering-mode") === true;
-      const spinnerVisible = await nativeSpinner.isVisible({ timeout: 500 }).catch(() => false);
-      if ((bufferingMode || spinnerVisible) && !loopSnapshot.mirrorVisible) {
-        nativeSpinnerEvents.push({ ...loopSnapshot, bufferingMode, spinnerVisible });
+      if (loopSnapshot.completions >= loopCycles) break;
+      const presentation = await inspectVisibleYouTube(page, "#live-loop");
+      if (presentation.stable) stableSamples++;
+      if (presentation.stable && (presentation.bufferingMode || presentation.spinnerVisible)) {
+        nativeSpinnerEvents.push({ ...loopSnapshot, ...presentation });
       }
       await page.waitForTimeout(50);
     }
@@ -120,17 +122,18 @@ try {
         completions: window.liveLoopCompletions,
         loadingObserved: window.liveLoopLoadingObserved,
         loadingEvents: window.liveLoopLoadingEvents,
-        playing: state.playerState === 1 || window.liveLoopPlayer.loopRestarting,
+        playing: state.playerState === 1 || window.liveLoopPlayer.loop.restarting,
         currentTime: state.currentTime
       };
     });
     liveLoop.nativeSpinnerEvents = nativeSpinnerEvents;
-    assert.ok(liveLoop.completions >= 3, `${name}: real YouTube clip completes three loop cycles (${JSON.stringify(liveLoop)})`);
+    assert.ok(stableSamples >= 10, `${name}: meaningful sampling of the presented frames`);
+    assert.ok(liveLoop.completions >= loopCycles, `${name}: real YouTube clip completes ${loopCycles} loop cycles (${JSON.stringify(liveLoop)})`);
     assert.equal(liveLoop.loadingObserved, false, `${name}: real YouTube loop restarts never expose loading UI (${JSON.stringify(liveLoop.loadingEvents)})`);
     assert.deepEqual(liveLoop.nativeSpinnerEvents, [], `${name}: real YouTube loop never exposes its native spinner`);
     assert.equal(liveLoop.playing, true, `${name}: real YouTube loop keeps playing after three cycles`);
     assert.deepEqual(errors, [], `${name}: no page errors`);
-    results.push(`${name}: captions ready and 3 seamless YouTube loops completed, duration ${Math.round(state.duration)}s`);
+    results.push(`${name}: captions ready and ${loopCycles} seamless YouTube loops completed, duration ${Math.round(state.duration)}s`);
     await browser.close();
   }
 } finally {

@@ -141,6 +141,7 @@ export const STYLES = `
   padding: 10px 12px;
   background: var(--yvsl-panel);
 }
+.yvsl-controls[hidden] { display: none; }
 .yvsl-captions { font-size: 12px; font-weight: 900; letter-spacing: -.03em; }
 .yvsl-captions[aria-pressed="true"] { color: #111; background: var(--yvsl-accent); border-color: var(--yvsl-accent); }
 .yvsl-progress {

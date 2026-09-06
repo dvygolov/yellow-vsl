@@ -1,5 +1,10 @@
+import { StickyController } from "./sticky.js";
+import { CaptionController } from "./captions.js";
+import { LoopController } from "./loop.js";
 import { normalizeOptions } from "./config.js";
-import { ProgressStorage, createStorageKey } from "./storage.js";
+import { PlayerProgress, unlockKey } from "./player-storage.js";
+import { TimerRegistry } from "./timers.js";
+import { ModalController } from "./modal.js";
 import { installStyles } from "./styles.js";
 import { PlaybackTimeline } from "./timeline.js";
 import {
@@ -12,7 +17,7 @@ import {
 } from "./utils.js";
 import { YouTubeAdapter, YT_STATE } from "./youtube-api.js";
 
-const instances = new Set();
+import { instances } from "./instances.js";
 let nextInstanceId = 1;
 
 function element(tag, className, attributes = {}) {
@@ -43,8 +48,18 @@ export class YellowVSLPlayer {
 
     this.id = `yvsl-${nextInstanceId++}`;
     this.dependencies = dependencies;
+    if (this.options.popup?.trigger) document.querySelectorAll(this.options.popup.trigger);
+    this.progressSession = new PlayerProgress({ mount: this.mount, options: this.options, videoId: this.videoId, storage: dependencies.storage });
+    this.timers = new TimerRegistry(window);
+    this.modal = new ModalController(this);
     this.destroyed = false;
+    this.failed = false;
+    this.playbackIntent = "idle";
+    this.initialPlaybackHandled = false;
     this.adapter = null;
+    this.stickyController = new StickyController(this);
+    this.captions = new CaptionController(this);
+    this.loop = new LoopController(this);
     this.playerState = YT_STATE.UNSTARTED;
     this.tickTimer = null;
     this.saveAt = 0;
@@ -58,25 +73,10 @@ export class YellowVSLPlayer {
     this.playbackProbeTimer = null;
     this.clockConfirmedPlaying = false;
     this.mutedIntent = null;
-    this.captionTracks = [];
-    this.captionsEnabled = false;
-    this.captionLanguage = null;
-    this.captionsInitialized = false;
-    this.captionIntent = null;
-    this.captionProbeTimer = null;
-    this.captionModuleReady = false;
-    this.captionApplyTimer = null;
     this.fullscreenControlsTimer = null;
     this.adapterMountPromise = null;
     this.pendingPlay = false;
     this.loading = false;
-    this.loopRestarting = false;
-    this.loopMirror = null;
-    this.loopMirrorState = YT_STATE.UNSTARTED;
-    this.loopMirrorReady = false;
-    this.loopMirrorPreparing = false;
-    this.loopTransitionActive = false;
-    this.loopTransitionToken = 0;
     this.completed = false;
     this.hasStarted = false;
     this.lastActiveAt = 0;
@@ -84,8 +84,6 @@ export class YellowVSLPlayer {
     this.timedNodes = [];
     this.cleanup = [];
     this.managedRevealElements = new Map();
-    this.stickyDismissed = false;
-    this.stickyOutOfView = false;
     this.popupOpen = false;
     this.originalNodes = Array.from(this.mount.childNodes);
 
@@ -93,11 +91,7 @@ export class YellowVSLPlayer {
     this._render();
     this._applyTheme();
 
-    const localStorage = dependencies.storage ?? safeLocalStorage();
-    this.storage = new ProgressStorage(
-      localStorage,
-      createStorageKey(this.videoId, this.options.playback.start, this.options.playback.end)
-    );
+    this.storage = this.progressSession.storage;
     this.saved = this.storage.load();
     this.unlocks = new Set(this.saved.unlocks);
     this.timeline = new PlaybackTimeline({
@@ -107,15 +101,19 @@ export class YellowVSLPlayer {
 
     this._renderTimedItems();
     this._setupPopup();
-    this._setupSticky();
+    this.stickyController.setup();
     this._bindLifecycle();
     instances.add(this);
 
     const preloadPopup = typeof this.options.popup === "object" && this.options.popup.preload === true;
     this.ready = this.options.popup && !preloadPopup ? Promise.resolve(this) : this._ensureAdapterMounted();
+    // Declarative users may rely exclusively on the error event. Keep ready rejectable
+    // for callers without reporting an additional unhandled rejection in that case.
+    this.ready.catch(() => {});
   }
 
   _ensureAdapterMounted() {
+    if (this.destroyed || this.failed) return Promise.resolve(this);
     if (this.adapterMountPromise) return this.adapterMountPromise;
     this.adapterMountPromise = this._mountAdapter();
     return this.adapterMountPromise;
@@ -150,32 +148,41 @@ export class YellowVSLPlayer {
           ready: () => this._onReady(),
           stateChange: (state) => this._onStateChange(state),
           rateChange: (rate) => this._onRateChange(rate),
-          apiChange: () => this._onApiChange(),
+          apiChange: () => this.captions.onApiChange(),
+          autoplayBlocked: () => this._onAutoplayBlocked(),
           error: (code) => this._onPlayerError(code)
         }
       });
       await this.adapter.mount();
+      if (this.destroyed || this.failed) return this;
       if (this.options.playback.loop) {
-        this.loopMirror = adapterFactory({
+        this.loop.mirror = adapterFactory({
           element: this.dom.loopMirrorHost,
           videoId: this.videoId,
           playerVars,
           events: {
-            stateChange: (state) => { this.loopMirrorState = state; },
+            stateChange: (state) => { this.loop.mirrorState = state; },
             error: () => {
-              this.loopMirrorReady = false;
-              this.loopMirrorPreparing = false;
+              this.loop.ready = false;
+              this.loop.preparing = false;
             }
           }
         });
-        await this.loopMirror.mount();
-        this.loopMirror.mute();
-        this.loopMirror.setPlaybackRate(this.options.playback.rate);
-        if (this.playerState === YT_STATE.PLAYING) this._prepareLoopMirror();
+        try { await this.loop.mirror.mount(); }
+        catch {
+          this.loop.mirror.destroy();
+          this.loop.mirror = null;
+          return this;
+        }
+        if (this.destroyed || this.failed) { this.loop.mirror.destroy(); return this; }
+        this.loop.mirror.mute();
+        this.loop.mirror.setPlaybackRate(this.options.playback.rate);
+        if (this.playerState === YT_STATE.PLAYING) this.loop.prepare();
       }
       return this;
     } catch (error) {
-      this._showError(error?.message || this.options.locale.genericError, "api");
+      if (this.destroyed) return this;
+      if (!this.failed) this._showError(error?.message || this.options.locale.genericError, error?.code || "api");
       throw error;
     }
   }
@@ -247,15 +254,15 @@ export class YellowVSLPlayer {
     this.mount.replaceChildren(sentinel, root);
 
     this.dom = { root, sentinel, above, message, stage, playerHost, loopMirror, loopMirrorHost, stageInteraction, poster, posterImage, posterPlay, stageOverlay, topLeft, topRight, bottomLeft, bottomRight, error, controls, play, volume, captions, progress, time, speed, fullscreen, stickyClose, below };
-    this._updateYoutubeUiMode();
+    this.captions.updateUiMode();
 
     this._listen(play, "click", () => this.playerState === YT_STATE.PLAYING ? this.pause() : this.play());
     this._listen(volume, "click", () => this._isMuted() ? this.unmute() : this.mute());
-    this._listen(captions, "click", () => this.toggleCaptions());
+    this._listen(captions, "click", () => this.captions.toggle());
     this._listen(progress, "input", () => this._seekFromProgress());
     this._listen(speed, "change", () => this._setRate(Number(speed.value)));
     this._listen(fullscreen, "click", () => this._toggleFullscreen());
-    this._listen(stickyClose, "click", () => this._dismissSticky());
+    this._listen(stickyClose, "click", () => this.stickyController.dismiss());
     this._listen(document, "fullscreenchange", () => this._updateFullscreenButton());
     this._listen(root, "pointermove", () => {
       if (document.fullscreenElement === root) this._revealFullscreenControls();
@@ -306,24 +313,32 @@ export class YellowVSLPlayer {
   }
 
   _onReady() {
-    if (this.destroyed || this.readyState) return;
+    if (this.destroyed || this.failed || this.readyState) return;
     this.readyState = true;
     if (this.mutedIntent == null) this.mutedIntent = this.adapter?.isMuted?.() ?? false;
     else this._syncMutedIntent();
     this._refreshDuration();
     this._populateRates();
     this._setRate(this.options.playback.rate);
-    this._startCaptionProbe();
+    this.captions.startProbe();
     this._updateUi();
     this._emit("ready");
     this._emit("view");
 
+    this._applyInitialPlayback();
+  }
+
+  _applyInitialPlayback() {
+    if (this.initialPlaybackHandled || this.destroyed || this.failed || !this.readyState ||
+        (this.options.popup && !this.popupOpen)) return;
+    this.initialPlaybackHandled = true;
+    if (this.playbackIntent === "paused") return;
     const canResume = this.saved.position > 3 && this.saved.position < Math.max(0, this.timeline.duration - 2);
     if (canResume && this.options.playback.resume === "ask") {
       this._showResumePrompt();
     } else if (canResume && this.options.playback.resume === "auto") {
       this.seek(this.saved.position);
-      this._startSmartAutoplay();
+      if (this.options.playback.autoplay === "smart") this._startSmartAutoplay();
     } else if (this.options.playback.autoplay === "smart") {
       this._startSmartAutoplay();
     }
@@ -331,16 +346,25 @@ export class YellowVSLPlayer {
 
   _refreshDuration() {
     const sourceDuration = this.adapter?.getDuration?.() || 0;
-    if (sourceDuration > 0) this.timeline.setDuration(sourceDuration);
+    if (sourceDuration > 0) {
+      if (this.timeline.start >= sourceDuration) {
+        const error = new RangeError("Начало фрагмента находится за пределами видео");
+        error.code = "config";
+        throw error;
+      }
+      this.timeline.setDuration(sourceDuration);
+    }
     return this.timeline.duration;
   }
 
   _startSmartAutoplay() {
+    if (this.destroyed || this.failed || this.playbackIntent === "paused" || (this.options.popup && !this.popupOpen)) return;
     this.mute();
     this.play();
     this._showUnmutePrompt();
-    window.setTimeout(() => {
-      if (!this.destroyed && this.playerState !== YT_STATE.PLAYING) this._showAutoplayFallback();
+    this.timers.timeout(() => {
+      if (!this.destroyed && !this.failed && this.playbackIntent === "playing" &&
+          this.playerState !== YT_STATE.PLAYING && (!this.options.popup || this.popupOpen)) this._showAutoplayFallback();
     }, 1800);
   }
 
@@ -364,6 +388,15 @@ export class YellowVSLPlayer {
       this.play();
     });
     this._showMessage("", [button]);
+  }
+
+  _onAutoplayBlocked() {
+    if (this.destroyed || this.failed || this.playbackIntent !== "playing" ||
+        (this.options.popup && !this.popupOpen)) return;
+    this._stopPlaybackProbe();
+    this.loading = false;
+    this._updateUi();
+    this._showAutoplayFallback();
   }
 
   _showResumePrompt() {
@@ -400,13 +433,17 @@ export class YellowVSLPlayer {
   }
 
   _onStateChange(state) {
-    if (this.destroyed) return;
+    if (this.destroyed || this.failed) return;
+    if (state === YT_STATE.PLAYING && (this.playbackIntent === "paused" || (this.options.popup && !this.popupOpen))) {
+      this.adapter?.pause();
+      return;
+    }
     const previousState = this.playerState;
     const confirmedByClock = this.clockConfirmedPlaying;
     this.playerState = state;
     if (state === YT_STATE.BUFFERING || state === YT_STATE.PLAYING) {
-      this._startCaptionProbe();
-      this._syncCaptionIntent();
+      this.captions.startProbe();
+      this.captions.syncIntent();
     }
     this.loading = state === YT_STATE.BUFFERING;
     if (state === YT_STATE.BUFFERING) {
@@ -415,20 +452,20 @@ export class YellowVSLPlayer {
       this._stopTicker();
       this.timeline.resetClock();
       this._startPlaybackProbe(previousState !== YT_STATE.PLAYING);
-      this._applySticky();
+      this.stickyController.apply();
       this._revealFullscreenControls(false);
       this._updateUi();
       return;
     }
     this._stopPlaybackProbe();
-    if (this.loopRestarting && state !== YT_STATE.PLAYING) {
+    if (this.loop.restarting && state !== YT_STATE.PLAYING) {
       this.clockConfirmedPlaying = false;
       this.stageRevealed = true;
       this.stageWasRevealedBeforeBuffering = false;
       this._cancelStageWarmup();
       this._stopTicker();
       this.timeline.resetClock();
-      this._applySticky();
+      this.stickyController.apply();
       this._updateUi();
       return;
     }
@@ -438,7 +475,7 @@ export class YellowVSLPlayer {
       this.stageRevealed = true;
       this.stageWasRevealedBeforeBuffering = false;
       this._startTicker();
-      this._applySticky();
+      this.stickyController.apply();
       this._updateUi();
       this._scheduleFullscreenControlsHide();
       return;
@@ -459,11 +496,11 @@ export class YellowVSLPlayer {
       this.completed = false;
       if (this.options.playback.singlePlayback) {
         for (const instance of instances) {
-          if (instance !== this && instance.playerState === YT_STATE.PLAYING) instance.pause();
+          if (instance !== this && (instance.playbackIntent === "playing" || instance.playerState === YT_STATE.PLAYING)) instance.pause();
         }
       }
       this._startTicker();
-      this._prepareLoopMirror();
+      this.loop.prepare();
       this._emit("play");
     } else {
       this.stageWarmupBypassNextPlay = false;
@@ -480,7 +517,7 @@ export class YellowVSLPlayer {
         this._complete();
       }
     }
-    this._applySticky();
+    this.stickyController.apply();
     this._updateUi();
     if (state === YT_STATE.PLAYING) this._scheduleFullscreenControlsHide();
     else this._revealFullscreenControls(false);
@@ -495,154 +532,13 @@ export class YellowVSLPlayer {
     this.playerState === YT_STATE.PLAYING ? this.pause() : this.play();
   }
 
-  _onApiChange() {
-    if (this.destroyed || !this.adapter) return;
-    const tracks = this.adapter.getCaptionTracks?.() || [];
-    const captionTracks = tracks.filter((track) => track && typeof track.languageCode === "string");
-    if (!captionTracks.length) {
-      if (!this.captionTracks.length) {
-        this.captionsEnabled = false;
-        this.dom.captions.hidden = true;
-        this._updateCaptionButton();
-      }
-      return;
-    }
-
-    this._applyCaptionTracks(captionTracks, true);
-    for (const instance of instances) {
-      if (
-        instance !== this
-        && !instance.destroyed
-        && instance.videoId === this.videoId
-        && instance.adapter
-        && !instance.captionTracks.length
-      ) {
-        instance._applyCaptionTracks(captionTracks, false);
-      }
-    }
-  }
-
-  _applyCaptionTracks(tracks, moduleReady = false) {
-    this.captionTracks = tracks;
-    if (moduleReady) {
-      this.captionModuleReady = true;
-      this._stopCaptionProbe();
-    }
-
-    const activeTrack = moduleReady ? (this.adapter.getCaptionTrack?.() || {}) : {};
-    const activeLanguage = typeof activeTrack.languageCode === "string" ? activeTrack.languageCode : null;
-    const desiredState = this.captionIntent ?? this.options.captions.enabled;
-
-    if (!this.captionsInitialized) {
-      this.captionsInitialized = true;
-      this.captionLanguage = this.options.captions.language || activeLanguage || this.captionTracks[0].languageCode;
-      this.captionsEnabled = desiredState === "auto" ? Boolean(activeLanguage) : desiredState;
-    } else if (moduleReady && desiredState === "auto") {
-      this.captionsEnabled = Boolean(activeLanguage);
-      this.captionLanguage = activeLanguage || this.captionLanguage || this.options.captions.language || this.captionTracks[0].languageCode;
-    }
-
-    if (desiredState !== "auto") this._scheduleCaptionApply(desiredState);
-
-    this.dom.captions.hidden = !this.options.controls.captions;
-    this._updateCaptionButton();
-  }
-
-  _startCaptionProbe() {
-    if (this.destroyed || this.captionModuleReady || this.captionProbeTimer) return;
-    let attempts = 0;
-    const probe = () => {
-      this.captionProbeTimer = null;
-      if (this.destroyed || this.captionModuleReady) return;
-      attempts += 1;
-      if (attempts === 1 || attempts === 8) this.adapter?.reloadCaptions?.();
-      this._onApiChange();
-      if (!this.captionModuleReady && attempts < 20) {
-        this.captionProbeTimer = window.setTimeout(probe, 250);
-      }
-    };
-    this.captionProbeTimer = window.setTimeout(probe, 0);
-  }
-
-  _stopCaptionProbe() {
-    if (!this.captionProbeTimer) return;
-    window.clearTimeout(this.captionProbeTimer);
-    this.captionProbeTimer = null;
-  }
-
-  _applyCaptionState(enabled) {
-    if (!this.adapter) return false;
-    if (!enabled) {
-      this.adapter.setCaptionTrack?.(null);
-      return true;
-    }
-    const track = this._captionTrack();
-    if (!track) return false;
-    this.captionLanguage = track.languageCode;
-    this.adapter.setCaptionTrack?.({ languageCode: track.languageCode });
-    return true;
-  }
-
-  _scheduleCaptionApply(enabled) {
-    this._stopCaptionApply();
-    if (!this._applyCaptionState(enabled)) {
-      this._startCaptionProbe();
-      return;
-    }
-
-    let attempt = 1;
-    const retry = () => {
-      this.captionApplyTimer = null;
-      const desiredState = this.captionIntent ?? this.options.captions.enabled;
-      if (this.destroyed || desiredState !== enabled) return;
-      this._applyCaptionState(enabled);
-      attempt += 1;
-      if (attempt < 4) this.captionApplyTimer = window.setTimeout(retry, attempt * 300);
-    };
-    this.captionApplyTimer = window.setTimeout(retry, 250);
-  }
-
-  _syncCaptionIntent() {
-    const desiredState = this.captionIntent ?? this.options.captions.enabled;
-    if (desiredState !== "auto") this._scheduleCaptionApply(desiredState);
-  }
-
-  _stopCaptionApply() {
-    if (!this.captionApplyTimer) return;
-    window.clearTimeout(this.captionApplyTimer);
-    this.captionApplyTimer = null;
-  }
-
-  _captionTrack(language = null) {
-    const requested = language || this.options.captions.language || this.captionLanguage;
-    const normalized = typeof requested === "string" ? requested.toLowerCase() : null;
-    return this.captionTracks.find((track) => track.languageCode.toLowerCase() === normalized)
-      || this.captionTracks.find((track) => track.languageCode.toLowerCase().split("-")[0] === normalized?.split("-")[0])
-      || this.captionTracks[0]
-      || null;
-  }
-
-  _updateCaptionButton() {
-    if (!this.dom?.captions) return;
-    const label = this.captionsEnabled ? this.options.locale.captionsDisable : this.options.locale.captionsEnable;
-    this.dom.captions.title = label;
-    this.dom.captions.setAttribute("aria-label", label);
-    this.dom.captions.setAttribute("aria-pressed", String(this.captionsEnabled));
-    this._updateYoutubeUiMode();
-  }
-
-  _updateYoutubeUiMode() {
-    if (!this.dom?.root) return;
-    const clean = this.options.youtubeUi === "clean" && !this.captionsEnabled;
-    this.dom.root.classList.toggle("yvsl-root--clean-youtube", clean);
-  }
-
   _onRateChange(rate) {
     this.timeline.rate = Number(rate) || 1;
     if (this.dom.speed) this.dom.speed.value = String(this.timeline.rate);
   }
 
   _onPlayerError(code) {
+    if (this.destroyed || this.failed) return;
     const locale = this.options.locale;
     let message = locale.genericError;
     if ([101, 150].includes(Number(code))) message = locale.embedError;
@@ -652,25 +548,41 @@ export class YellowVSLPlayer {
   }
 
   _showError(message, code) {
+    if (this.destroyed || this.failed) return;
+    this.failed = true;
+    this.readyState = false;
+    this.playbackIntent = "paused";
+    this.pendingPlay = false;
+    this._stopTicker();
     this._stopPlaybackProbe();
-    this._stopCaptionProbe();
+    this.captions.stopProbe();
+    this.captions.stopApply();
+    this.loop.cancel();
+    this._cancelStageWarmup();
+    this.timers.clearAll();
+    this.adapter?.pause();
+    this.loop.mirror?.pause?.();
+    this.playerState = YT_STATE.PAUSED;
+    this.stageRevealed = false;
     this.loading = false;
-    this.loopRestarting = false;
+    this.loop.restarting = false;
+    this._updateUi();
     this.dom.error.textContent = message;
     this.dom.error.hidden = false;
     this.dom.controls.hidden = true;
+    this._hideMessage();
     this._emit("error", { code, message });
   }
 
   _startTicker() {
     if (this.tickTimer) return;
     const interval = this.options.playback.loop ? 50 : 250;
-    this.tickTimer = window.setInterval(() => this._tick(), interval);
+    this.tickTimer = this.timers.interval(() => this._tick(), interval);
   }
 
   _stopTicker() {
     if (!this.tickTimer) return;
-    window.clearInterval(this.tickTimer);
+    this.timers.clear(this.tickTimer);
     this.tickTimer = null;
   }
 
@@ -692,13 +604,13 @@ export class YellowVSLPlayer {
         this._confirmPlaybackFromClock(emitPlay);
         return;
       }
-      this.playbackProbeTimer = window.setTimeout(probe, 80);
+      this.playbackProbeTimer = this.timers.timeout(probe, 80);
     };
-    this.playbackProbeTimer = window.setTimeout(probe, 80);
+    this.playbackProbeTimer = this.timers.timeout(probe, 80);
   }
 
   _stopPlaybackProbe() {
-    if (this.playbackProbeTimer) window.clearTimeout(this.playbackProbeTimer);
+    if (this.playbackProbeTimer) this.timers.clear(this.playbackProbeTimer);
     this.playbackProbeTimer = null;
   }
 
@@ -714,26 +626,29 @@ export class YellowVSLPlayer {
     this.completed = false;
     if (this.options.playback.singlePlayback) {
       for (const instance of instances) {
-        if (instance !== this && instance.playerState === YT_STATE.PLAYING) instance.pause();
+        if (instance !== this && (instance.playbackIntent === "playing" || instance.playerState === YT_STATE.PLAYING)) instance.pause();
       }
     }
     this._startTicker();
-    this._applySticky();
+    this.stickyController.apply();
     this._updateUi();
     this._scheduleFullscreenControlsHide();
     if (emitPlay) this._emit("play");
   }
 
   _tick() {
-    if (this.destroyed || !this.adapter || !this.readyState) return;
+    if (this.destroyed || this.failed || !this.adapter || !this.readyState) return;
     if (this.stageWarmupTimer) {
       this._updateUi();
       return;
     }
-    if (!this.timeline.duration) this._refreshDuration();
+    if (!this.timeline.duration) {
+      try { this._refreshDuration(); }
+      catch (error) { this._showError(error.message, error.code || "config"); return; }
+    }
 
     const sourceTime = this.adapter.getCurrentTime();
-    if (this.loopRestarting && this.timeline.duration && sourceTime - this.timeline.start > this.timeline.duration * 0.75) {
+    if (this.loop.restarting && this.timeline.duration && sourceTime - this.timeline.start > this.timeline.duration * 0.75) {
       this._updateUi();
       return;
     }
@@ -747,8 +662,8 @@ export class YellowVSLPlayer {
     }
 
     const loopSettledAt = Math.min(1, this.timeline.duration * 0.25);
-    if (this.loopRestarting && this.playerState === YT_STATE.PLAYING && this.timeline.current >= loopSettledAt) {
-      this.loopRestarting = false;
+    if (this.loop.restarting && this.playerState === YT_STATE.PLAYING && this.timeline.current >= loopSettledAt) {
+      this.loop.restarting = false;
     }
 
     const endTolerance = this.options.playback.loop
@@ -773,7 +688,7 @@ export class YellowVSLPlayer {
   }
 
   _complete() {
-    if (this.completed || this.loopRestarting || !this.timeline.duration) return;
+    if (this.completed || this.loop.restarting || !this.timeline.duration) return;
     this.completed = true;
     this.timeline.current = this.timeline.duration;
     this.timeline.grant(this.timeline.duration);
@@ -784,134 +699,24 @@ export class YellowVSLPlayer {
     if (this.options.playback.loop) {
       const wasPlaying = this.playerState === YT_STATE.PLAYING;
       this.completed = false;
-      this.loopRestarting = true;
-      if (!this._startMirroredLoopTransition()) {
+      this.loop.restarting = true;
+      if (!this.loop.startTransition()) {
         this.adapter.seekTo(this.options.playback.start, true);
       }
       this.timeline.current = 0;
       this.timeline.resetClock();
-      if (!this.loopTransitionActive) this._syncMutedIntent();
+      if (!this.loop.active) this._syncMutedIntent();
       if (!wasPlaying) this.adapter.play();
     } else {
-      this.loopRestarting = false;
+      this.loop.restarting = false;
       this.adapter.pause();
       this._saveProgress({ position: 0 });
     }
   }
 
-  _prepareLoopMirror() {
-    if (!this.options.playback.loop || !this.loopMirror || this.loopMirrorReady || this.loopMirrorPreparing || this.loopTransitionActive) return;
-    this.loopMirrorPreparing = true;
-    const token = ++this.loopTransitionToken;
-    const mirror = this.loopMirror;
-    const start = this.options.playback.start;
-    mirror.mute();
-    mirror.setVolume?.(this.adapter?.getVolume?.() ?? 100);
-    mirror.setPlaybackRate?.(this.timeline.rate);
-    mirror.seekTo(start, true);
-    mirror.play();
-    const startedAt = Date.now();
-    const inspect = () => {
-      if (this.destroyed || token !== this.loopTransitionToken || this.loopTransitionActive) return;
-      const current = mirror.getCurrentTime?.() ?? start;
-      if (mirror.getState?.() === YT_STATE.PLAYING && current >= start + 0.04) {
-        mirror.pause();
-        this.loopMirrorReady = true;
-        this.loopMirrorPreparing = false;
-        return;
-      }
-      if (Date.now() - startedAt >= 3500) {
-        mirror.pause();
-        this.loopMirrorReady = false;
-        this.loopMirrorPreparing = false;
-        return;
-      }
-      window.setTimeout(inspect, 30);
-    };
-    window.setTimeout(inspect, 30);
-  }
-
-  _startMirroredLoopTransition() {
-    if (!this.loopMirror?.play || !this.loopMirrorReady || this.loopTransitionActive) return false;
-    const primary = this.adapter;
-    const mirror = this.loopMirror;
-    const start = this.options.playback.start;
-    const shouldBeMuted = this._isMuted();
-    const token = ++this.loopTransitionToken;
-    const mirrorStart = mirror.getCurrentTime?.() ?? start;
-    this.loopMirrorReady = false;
-    this.loopMirrorPreparing = false;
-    this.loopTransitionActive = true;
-    mirror.setVolume?.(primary.getVolume?.() ?? 100);
-    mirror.setPlaybackRate?.(this.timeline.rate);
-    mirror.mute();
-    mirror.play();
-    const startedAt = Date.now();
-
-    const restorePrimary = () => {
-      if (token !== this.loopTransitionToken) return;
-      this.dom.loopMirror.classList.remove("yvsl-loop-mirror--visible");
-      mirror.mute();
-      mirror.pause();
-      if (shouldBeMuted) primary.mute();
-      else primary.unmute();
-      this.loopTransitionActive = false;
-      window.setTimeout(() => this._prepareLoopMirror(), 80);
-    };
-
-    const waitForPrimary = () => {
-      if (this.destroyed || token !== this.loopTransitionToken) return;
-      const current = primary.getCurrentTime?.() ?? start;
-      const ready = primary.getState?.() === YT_STATE.PLAYING && current >= start && current < start + 1.5;
-      if (ready || Date.now() - startedAt >= 3000) {
-        restorePrimary();
-        return;
-      }
-      window.setTimeout(waitForPrimary, 30);
-    };
-
-    const revealMirror = () => {
-      if (this.destroyed || token !== this.loopTransitionToken) return;
-      const current = mirror.getCurrentTime?.() ?? mirrorStart;
-      const ready = mirror.getState?.() === YT_STATE.PLAYING && current >= mirrorStart + 0.03;
-      if (ready) {
-        if (!shouldBeMuted) {
-          primary.mute();
-          mirror.unmute();
-        }
-        this.dom.loopMirror.classList.add("yvsl-loop-mirror--visible");
-        primary.seekTo(start, true);
-        window.setTimeout(waitForPrimary, 30);
-        return;
-      }
-      if (Date.now() - startedAt >= 1200) {
-        this.loopTransitionActive = false;
-        mirror.mute();
-        mirror.pause();
-        primary.seekTo(start, true);
-        this._syncMutedIntent();
-        return;
-      }
-      window.setTimeout(revealMirror, 30);
-    };
-
-    window.setTimeout(revealMirror, 30);
-    return true;
-  }
-
-  _cancelLoopTransition() {
-    this.loopTransitionToken += 1;
-    this.loopTransitionActive = false;
-    this.loopMirrorPreparing = false;
-    this.dom.loopMirror?.classList.remove("yvsl-loop-mirror--visible");
-    this.loopMirror?.mute?.();
-    this.loopMirror?.pause?.();
-    this._syncMutedIntent();
-  }
-
   _updateUi() {
     const playing = this.playerState === YT_STATE.PLAYING;
-    const seamlessLoopTransition = this.loopRestarting && this.playerState !== YT_STATE.PLAYING;
+    const seamlessLoopTransition = this.loop.restarting && this.playerState !== YT_STATE.PLAYING;
     const presentingAsPlaying = playing || seamlessLoopTransition;
     const showLoading = this.loading && !seamlessLoopTransition;
     const displayingVideo = presentingAsPlaying || (this.playerState === YT_STATE.BUFFERING && this.stageWasRevealedBeforeBuffering);
@@ -927,7 +732,7 @@ export class YellowVSLPlayer {
     this.dom.volume.textContent = muted ? "🔇" : "🔊";
     this.dom.volume.title = muted ? this.options.locale.unmute : this.options.locale.mute;
     this.dom.volume.setAttribute("aria-label", this.dom.volume.title);
-    this._updateCaptionButton();
+    this.captions.updateButton();
 
     const duration = this.timeline.duration || 0;
     const realFraction = duration ? clamp(this.timeline.current / duration, 0, 1) : 0;
@@ -963,7 +768,7 @@ export class YellowVSLPlayer {
   _setRate(rate) {
     this.timeline.rate = Number(rate) || 1;
     this.adapter?.setPlaybackRate?.(this.timeline.rate);
-    this.loopMirror?.setPlaybackRate?.(this.timeline.rate);
+    this.loop.mirror?.setPlaybackRate?.(this.timeline.rate);
   }
 
   _startStageWarmup() {
@@ -980,7 +785,7 @@ export class YellowVSLPlayer {
     if (!this.stageWarmupWasMuted) this.adapter?.mute?.();
     this.loading = true;
     this._updateUi();
-    this.stageWarmupTimer = window.setTimeout(() => {
+    this.stageWarmupTimer = this.timers.timeout(() => {
       this.stageWarmupTimer = null;
       if (this.destroyed || this.playerState !== YT_STATE.PLAYING) return;
       this.stageWarmupBypassNextPlay = true;
@@ -996,7 +801,7 @@ export class YellowVSLPlayer {
   }
 
   _cancelStageWarmup() {
-    if (this.stageWarmupTimer) window.clearTimeout(this.stageWarmupTimer);
+    if (this.stageWarmupTimer) this.timers.clear(this.stageWarmupTimer);
     this.stageWarmupTimer = null;
     if (this.stageWarmupWasMuted != null) this._syncMutedIntent();
     this.stageWarmupWasMuted = null;
@@ -1059,13 +864,13 @@ export class YellowVSLPlayer {
     let nodes = [];
     try { nodes = document.querySelectorAll(selector); } catch { return; }
     for (const node of nodes) {
-      if (!this.managedRevealElements.has(node)) this.managedRevealElements.set(node, node.hidden);
-      if (!this.unlocks.has(item.id)) {
+      if (!this.managedRevealElements.has(node)) this.managedRevealElements.set(node, { hidden: node.hidden, ariaHidden: node.getAttribute("aria-hidden") });
+      if (!this.unlocks.has(unlockKey(item))) {
         node.hidden = true;
         node.setAttribute("aria-hidden", "true");
       }
     }
-    if (this.unlocks.has(item.id)) this._reveal(item, false);
+    if (this.unlocks.has(unlockKey(item))) this._reveal(item, false);
   }
 
   _revealSelector(item) {
@@ -1100,8 +905,8 @@ export class YellowVSLPlayer {
       }
     }
     if (scroll && firstNode) firstNode.scrollIntoView({ behavior: "smooth", block: "start" });
-    if (item.persist !== false && persist && !this.unlocks.has(item.id)) {
-      this.unlocks.add(item.id);
+    if (item.persist !== false && persist && !this.unlocks.has(unlockKey(item))) {
+      this.unlocks.add(unlockKey(item));
       this._saveProgress();
     }
   }
@@ -1110,7 +915,7 @@ export class YellowVSLPlayer {
     const current = this.timeline?.current || 0;
     for (const entry of this.timedNodes) {
       const { item, node, type } = entry;
-      const unlocked = type !== "hook" && item.persist !== false && this.unlocks.has(item.id);
+      const unlocked = type !== "hook" && item.persist !== false && this.unlocks.has(unlockKey(item));
       const active = unlocked || (current >= item.start && current <= item.end);
       if (node) node.hidden = !active;
 
@@ -1156,44 +961,7 @@ export class YellowVSLPlayer {
     this.dom.popupClose = close;
     this._listen(close, "click", () => this.close());
     this._listen(backdrop, "click", (event) => { if (event.target === backdrop) this.close(); });
-    this._listen(document, "keydown", (event) => { if (event.key === "Escape" && this.popupOpen) this.close(); });
-  }
-
-  _setupSticky() {
-    if (!this.options.sticky || !globalThis.IntersectionObserver) return;
-    this.stickyObserver = new IntersectionObserver(([entry]) => {
-      this.stickyOutOfView = !entry.isIntersecting;
-      this._applySticky();
-    }, { threshold: 0 });
-    this.stickyObserver.observe(this.dom.sentinel);
-
-    if (typeof this.options.sticky === "object") {
-      const position = this.options.sticky.position;
-      if (position === "bottom-left") {
-        this.dom.root.style.left = "18px";
-        this.dom.root.style.right = "auto";
-      }
-      if (this.options.sticky.width) this.dom.root.style.setProperty("--yvsl-sticky-width", String(this.options.sticky.width));
-    }
-  }
-
-  _applySticky() {
-    const active = Boolean(
-      this.options.sticky &&
-      this.stickyOutOfView &&
-      !this.stickyDismissed &&
-      !this.popupOpen &&
-      document.fullscreenElement !== this.dom.root &&
-      this.hasStarted &&
-      [YT_STATE.PLAYING, YT_STATE.PAUSED, YT_STATE.BUFFERING].includes(this.playerState)
-    );
-    this.dom.root.classList.toggle("yvsl-root--sticky", active);
-  }
-
-  _dismissSticky() {
-    this.stickyDismissed = true;
-    this.dom.root.classList.remove("yvsl-root--sticky");
-    this.pause();
+    this._listen(document, "keydown", (event) => this.modal.handleKey(event));
   }
 
   _toggleFullscreen() {
@@ -1209,7 +977,7 @@ export class YellowVSLPlayer {
 
   _updateFullscreenButton() {
     const active = document.fullscreenElement === this.dom.root;
-    this._applySticky();
+    this.stickyController.apply();
     if (active) this._revealFullscreenControls();
     else {
       this._clearFullscreenControlsTimer();
@@ -1222,7 +990,7 @@ export class YellowVSLPlayer {
 
   _clearFullscreenControlsTimer() {
     if (!this.fullscreenControlsTimer) return;
-    window.clearTimeout(this.fullscreenControlsTimer);
+    this.timers.clear(this.fullscreenControlsTimer);
     this.fullscreenControlsTimer = null;
   }
 
@@ -1235,7 +1003,7 @@ export class YellowVSLPlayer {
   _scheduleFullscreenControlsHide() {
     this._clearFullscreenControlsTimer();
     if (document.fullscreenElement !== this.dom.root || this.playerState !== YT_STATE.PLAYING) return;
-    this.fullscreenControlsTimer = window.setTimeout(() => {
+    this.fullscreenControlsTimer = this.timers.timeout(() => {
       this.fullscreenControlsTimer = null;
       if (document.fullscreenElement === this.dom.root && this.playerState === YT_STATE.PLAYING) {
         this.dom.root.classList.add("yvsl-controls-hidden");
@@ -1254,16 +1022,7 @@ export class YellowVSLPlayer {
 
   _saveProgress(overrides = {}) {
     if (!this.storage || !this.timeline) return;
-    const existing = this.storage.load();
-    const activeAt = Math.max(this.lastActiveAt, Number(overrides.activeAt) || 0);
-    const ownsPosition = Object.prototype.hasOwnProperty.call(overrides, "position") || activeAt >= (existing.activeAt || 0);
-    this.storage.save({
-      position: ownsPosition ? (this.completed ? 0 : this.timeline.current) : existing.position,
-      maxWatched: Math.max(existing.maxWatched || 0, this.timeline.maxWatched),
-      unlocks: [...new Set([...(existing.unlocks || []), ...this.unlocks])],
-      activeAt: Math.max(existing.activeAt || 0, activeAt),
-      ...overrides
-    });
+    this.progressSession.save(this, overrides);
   }
 
   _emit(name, extra = {}) {
@@ -1280,6 +1039,12 @@ export class YellowVSLPlayer {
   }
 
   play() {
+    if (this.destroyed || this.failed) return this;
+    this.playbackIntent = "playing";
+    if (this.completed) {
+      this.completed = false;
+      this.seek(0);
+    }
     this._hideMessage();
     this.loading = this.playerState !== YT_STATE.PLAYING;
     this._updateUi();
@@ -1305,55 +1070,36 @@ export class YellowVSLPlayer {
   }
 
   pause() {
+    if (this.destroyed) return this;
+    this.playbackIntent = "paused";
     this.pendingPlay = false;
     this._stopPlaybackProbe();
     this.loading = false;
-    this.loopRestarting = false;
-    this._cancelLoopTransition();
+    this.loop.restarting = false;
+    this.loop.cancel();
     this._updateUi();
     this.adapter?.pause();
     return this;
   }
 
-  enableCaptions(language = null) {
-    this.captionIntent = true;
-    if (typeof language === "string" && language.trim()) this.captionLanguage = language.trim().toLowerCase();
-    const track = this._captionTrack(language);
-    if (!track || !this.adapter) return this;
-    this.captionLanguage = track.languageCode;
-    this.captionsEnabled = true;
-    this._scheduleCaptionApply(true);
-    this._updateCaptionButton();
-    this._emit("captions", { enabled: true, language: this.captionLanguage });
-    return this;
-  }
-
-  disableCaptions() {
-    this.captionIntent = false;
-    this.captionsEnabled = false;
-    this._scheduleCaptionApply(false);
-    this._updateCaptionButton();
-    this._emit("captions", { enabled: false, language: this.captionLanguage });
-    return this;
-  }
-
-  toggleCaptions() {
-    return this.captionsEnabled ? this.disableCaptions() : this.enableCaptions();
-  }
+  enableCaptions(language = null) { return this.captions.enable(language); }
+  disableCaptions() { return this.captions.disable(); }
+  toggleCaptions() { return this.captions.toggle(); }
 
   mute() {
+    if (this.destroyed || this.failed) return this;
     this.mutedIntent = true;
     this.adapter?.mute();
-    this.loopMirror?.mute?.();
+    this.loop.mirror?.mute?.();
     this._updateUi();
     return this;
   }
 
   unmute(restart = false) {
+    if (this.destroyed || this.failed) return this;
     if (restart) this.seek(0);
     this.mutedIntent = false;
-    this.adapter?.unmute();
-    if (this.loopTransitionActive) this.loopMirror?.unmute?.();
+    this._syncMutedIntent();
     this._hideMessage();
     this._updateUi();
     return this;
@@ -1365,25 +1111,32 @@ export class YellowVSLPlayer {
 
   _syncMutedIntent() {
     if (!this.adapter || this.mutedIntent == null) return;
-    if (this.mutedIntent) this.adapter.mute();
+    const mirrorVisible = this.loop.active && this.dom.loopMirror.classList.contains("yvsl-loop-mirror--visible");
+    if (this.mutedIntent || mirrorVisible) this.adapter.mute();
     else this.adapter.unmute();
+    if (!this.mutedIntent && mirrorVisible) this.loop.mirror?.unmute?.();
+    else this.loop.mirror?.mute?.();
   }
 
   seek(seconds) {
+    if (this.destroyed || this.failed) return this.timeline.current;
     const requested = clamp(seconds, 0, this.timeline.duration || Infinity);
     if (this.options.playback.noSeek === "forward" && requested > this.timeline.maxWatched + 0.001) {
       this._updateUi();
       return this.timeline.current;
     }
     const sourceTime = this.timeline.seek(requested);
+    this.loop.cancel();
+    this.loop.restarting = false;
     const logicalTime = sourceTime - this.timeline.start;
+    if (logicalTime < this.timeline.duration) this.completed = false;
     const generation = ++this.seekGeneration;
     this.adapter?.seekTo(sourceTime);
     this.timeline.current = logicalTime;
     this._updateUi();
     this._updateTimedItems();
     for (const delay of [100, 400, 900]) {
-      window.setTimeout(() => {
+      this.timers.timeout(() => {
         if (!this.destroyed && generation === this.seekGeneration) this._tick();
       }, delay);
     }
@@ -1391,9 +1144,10 @@ export class YellowVSLPlayer {
   }
 
   open() {
+    if (this.destroyed || this.failed || this.popupOpen) return this;
     this._createPopup();
     for (const instance of instances) {
-      if (instance !== this && instance.playerState === YT_STATE.PLAYING) instance.pause();
+      if (instance !== this && (instance.playbackIntent === "playing" || instance.playerState === YT_STATE.PLAYING)) instance.pause();
     }
     this.popupOpen = true;
     this.dom.root.classList.remove("yvsl-root--sticky");
@@ -1401,25 +1155,27 @@ export class YellowVSLPlayer {
     this.dom.root.removeAttribute("aria-hidden");
     this.dom.popupPanel.append(this.dom.root);
     this.dom.popupBackdrop.hidden = false;
-    document.body.style.overflow = "hidden";
+    this.modal.acquire();
     this.dom.popupClose.focus();
     this.ready = this._ensureAdapterMounted();
+    this.ready.catch(() => {});
+    this._applyInitialPlayback();
     return this;
   }
 
   close() {
-    if (!this.popupOpen) return this;
+    if (this.destroyed || !this.popupOpen) return this;
     this.pendingPlay = false;
     this.pause();
     this.popupOpen = false;
     this.mount.append(this.dom.root);
     this.dom.popupBackdrop.hidden = true;
-    document.body.style.overflow = "";
+    this.modal.release();
     if (this.options.popup) {
       this.dom.root.classList.add("yvsl-root--popup-idle");
       this.dom.root.setAttribute("aria-hidden", "true");
     }
-    this._applySticky();
+    this.stickyController.apply();
     return this;
   }
 
@@ -1433,8 +1189,8 @@ export class YellowVSLPlayer {
       duration: this.timeline.duration,
       maxWatched: this.timeline.maxWatched,
       muted: this._isMuted(),
-      captions: this.captionsEnabled,
-      captionLanguage: this.captionLanguage,
+      captions: this.captions.enabled,
+      captionLanguage: this.captions.language,
       rate: this.timeline.rate,
       popupOpen: this.popupOpen,
       sticky: this.dom.root.classList.contains("yvsl-root--sticky")
@@ -1447,25 +1203,24 @@ export class YellowVSLPlayer {
     this.destroyed = true;
     this._stopTicker();
     this._stopPlaybackProbe();
-    this._stopCaptionProbe();
-    this._stopCaptionApply();
+    this.captions.stopProbe();
+    this.captions.stopApply();
     this._clearFullscreenControlsTimer();
     this._cancelStageWarmup();
-    this.stickyObserver?.disconnect();
+    this.stickyController.observer?.disconnect();
     this.adapter?.destroy();
-    this.loopMirror?.destroy?.();
+    this.loop.mirror?.destroy?.();
     for (const dispose of this.cleanup.splice(0)) dispose();
-    for (const [node, originallyHidden] of this.managedRevealElements) {
-      node.hidden = originallyHidden;
-      if (!originallyHidden) node.removeAttribute("aria-hidden");
+    for (const [node, original] of this.managedRevealElements) {
+      node.hidden = original.hidden;
+      if (original.ariaHidden == null) node.removeAttribute("aria-hidden");
+      else node.setAttribute("aria-hidden", original.ariaHidden);
     }
     this.dom.popupBackdrop?.remove();
-    document.body.style.overflow = "";
+    this.modal.release();
+    this.timers.dispose();
+    this.progressSession.release();
     this.mount.replaceChildren(...this.originalNodes);
     instances.delete(this);
   }
-}
-
-function safeLocalStorage() {
-  try { return globalThis.localStorage; } catch { return null; }
 }

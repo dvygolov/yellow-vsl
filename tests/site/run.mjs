@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { chromium } from "playwright";
 import { startStaticServer } from "../helpers/server.mjs";
+import packageInfo from "../../package.json" with { type: "json" };
 
 const server = await startStaticServer(resolve("site-dist"));
 const browser = await chromium.launch({ headless: true });
@@ -42,7 +43,7 @@ try {
   assert.equal((await page.locator("body").innerText()).includes("__SIZE__"), false, "размер minified-сборки подставлен при сборке");
   assert.equal(await page.locator("#example-forward, #example-back, #example-result, #event-log, #event-count").count(), 0, "тестовые кнопки и JSON-лог удалены");
   assert.equal(await page.locator("#example-unmute, #fragment-start").count(), 0, "лишние демонстрационные кнопки удалены");
-  assert.match(await page.locator("#install-code").textContent(), /yellow-vsl@v1\.7\.5/);
+  assert.ok((await page.locator("#install-code").textContent()).includes(`yellow-vsl@v${packageInfo.version}`));
   assert.match(await page.locator("#modes-code").textContent(), /\[5, 50\].*\[30, 70\].*\[50, 90\]/s);
   assert.match(await page.locator("#cta-code").textContent(), /background: "#ff3b30"/);
   assert.match(await page.locator("#cta-code").textContent(), /reveal: "#offer"/);

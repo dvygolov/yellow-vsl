@@ -259,7 +259,7 @@ try {
         player._complete();
         player._onStateChange(3);
         cycles.push({
-          loopRestarting: player.loopRestarting,
+          loopRestarting: player.loop.restarting,
           internalLoading: player.loading,
           controlLoading: player.dom.play.classList.contains("yvsl-is-loading"),
           posterLoading: player.dom.posterPlay.classList.contains("yvsl-is-loading"),
@@ -272,7 +272,7 @@ try {
         player._tick();
       }
       const settled = {
-        loopRestarting: player.loopRestarting,
+        loopRestarting: player.loop.restarting,
         controlLoading: player.dom.play.classList.contains("yvsl-is-loading"),
         controlText: player.dom.play.textContent
       };
@@ -486,15 +486,16 @@ try {
     await page.locator("#main .yvsl-sticky-close").click();
     assert.notEqual(await page.evaluate(() => window.mainPlayer.getState().playerState), 1, `${name}: sticky close pauses`);
 
-    await page.addInitScript(() => {
-      localStorage.setItem("yellowvsl:v1:M7lc1UVf-VE:0:end", JSON.stringify({
+    const resumeStorageKey = await page.evaluate(() => window.mainPlayer.storage.key);
+    await page.addInitScript((key) => {
+      localStorage.setItem(key, JSON.stringify({
         position: 8,
         maxWatched: 10,
         unlocks: [],
         activeAt: Date.now() + 1000,
         updatedAt: Date.now()
       }));
-    });
+    }, resumeStorageKey);
     await page.reload();
     await page.evaluate(async () => {
       window.mainPlayer = window.YellowVSL.autoInit()[0];

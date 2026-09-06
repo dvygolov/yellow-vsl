@@ -30,7 +30,7 @@ A free vanilla JavaScript VSL player backed by YouTube. YellowVSL adds Smart Aut
   data-video="https://youtu.be/M7lc1UVf-VE">
 </div>
 
-<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.7.5/dist/yellow-vsl.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.8.0/dist/yellow-vsl.min.js"></script>
 ```
 
 The defaults include:
@@ -69,7 +69,7 @@ Open `http://127.0.0.1:4173/demo/`. The demo covers Smart Autoplay, Smart Progre
   This block is revealed after the CTA is clicked.
 </section>
 
-<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.7.5/dist/yellow-vsl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.8.0/dist/yellow-vsl.min.js"></script>
 <script>
   const player = YellowVSL.create("#sales-video", {
     video: "https://www.youtube.com/watch?v=M7lc1UVf-VE",
@@ -132,6 +132,7 @@ All `start`, `end`, CTA, hook and reveal times are relative to the beginning of 
 | Option | Type / values | Default | Purpose |
 | --- | --- | --- | --- |
 | `video` | YouTube URL or ID | required | Video to load |
+| `storageKey` | string | container `id` | Unique persistent identity of this player instance |
 | `playback` | object | see the next table | Autoplay, clip range, loop, speed and seeking |
 | `progress` | object | Smart Progress | Progress mode and curve |
 | `controls` | object | play, volume, captions, progress, fullscreen | Bottom control bar |
@@ -330,6 +331,18 @@ popup: {
 
 Fullscreen controls hide automatically after 2.4 seconds of playback. Tapping the video reveals them without pausing; controls remain visible while playback is paused.
 
+Preloading does not open the popup or start playback. Smart Autoplay applies on first open. Closing cancels a pending start, including while YouTube is loading. Keyboard focus stays inside the dialog and returns to its opener after closing.
+
+### Progress persistence and migration
+
+Each player owns its position, watched range and unlocked offers. Set a container `id` or an explicit `storageKey` (`data-storage-key` in HTML) to persist across reloads. The identity must be unique among active instances on the page. Anonymous players keep state in memory only.
+
+Storage is scoped by page pathname (excluding query/hash), instance identity, video and fragment. Players using the same video do not share progress. Changing a CTA/reveal configuration invalidates its previous unlock.
+
+The new format uses `yellowvsl:v2:`. Existing shared `yellowvsl:v1:` records remain untouched but are not migrated because their owner cannot be determined. Resume starts fresh after upgrading. Records expire 30 days after their last save.
+
+`resume: "auto"` restores the position but waits for user playback when `autoplay: false`. `resume: false` skips position restoration while still tracking the watched range and unlocked offers.
+
 ### `theme`
 
 | Option | CSS variable |
@@ -349,6 +362,7 @@ Overridable `locale` strings: `play`, `pause`, `mute`, `unmute`, `unmutePrompt`,
 | Attribute | Example | Purpose |
 | --- | --- | --- |
 | `data-video` | URL or ID | Required video |
+| `data-storage-key` | `hero-vsl` | Unique persistent identity; defaults to the container's `id` |
 | `data-autoplay` | `false` | Disable Smart Autoplay |
 | `data-progress` | `smart`, `real`, `hidden` | Progress mode |
 | `data-resume` | `ask`, `auto`, `false` | Resume mode |
@@ -398,6 +412,12 @@ document.addEventListener("yellowvsl:cta-click", (event) => {
 
 Available events: `yellowvsl:ready`, `view`, `play`, `pause`, `progress`, `resume`, `complete`, `cta-show`, `cta-click`, `captions`, `error`.
 
+After `destroy()`, `autoInit()` can create a new instance. Destruction cancels pending initialization and timers. A lazy popup's initial `ready` resolves without mounting an iframe; after `open()`, the new `ready` promise awaits actual YouTube readiness. Errors are available through the rejected promise or `yellowvsl:error`.
+
+An explicit `enableCaptions("ru")` overrides the initial `captions.language`. After completion, `play()` restarts the fragment. Empty ranges (`end <= start`), non-finite boundaries and a start beyond the video duration are rejected.
+
+TypeScript declarations are included in `types/index.d.ts`; no separate types package is required.
+
 ## Development
 
 ```bash
@@ -405,13 +425,14 @@ npm install
 npm run build
 npm run build:site
 npm run test:unit
+npm run test:types
 npm run test:browser
 npm run test:live
 ```
 
-`npm test` builds the project and runs unit plus deterministic browser tests in Chromium, Firefox and WebKit. `npm run test:live` uses the real YouTube IFrame Player API.
+Development requires Node.js 20.19 or newer; CI uses Node.js 24. `npm test` builds the project and runs unit tests, TypeScript integration checks, Chromium/Firefox/WebKit regressions, negative controls for spinner inspection and website tests. `npm run test:live` uses the real YouTube IFrame Player API and checks the presented iframe; selector failures fail the test.
 
-The `site/` directory contains the public website source. `npm run build:site` creates `site-dist/`. Every push to `main` is deployed to Cloudflare Pages by `.github/workflows/pages.yml`.
+The `site/` directory contains the public website source. `npm run build:site` creates `site-dist/`. After a push to `main`, `.github/workflows/pages.yml` runs the full CI suite and deploys its verified artifact for the same commit, without rebuilding it.
 
 Download stable files from [GitHub Releases](https://github.com/dvygolov/yellow-vsl/releases), or use `dist/yellow-vsl.min.js` from a versioned tag.
 

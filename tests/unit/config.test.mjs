@@ -17,7 +17,7 @@ test("конфигурация по умолчанию включает Smart Pr
 test("start/end, rate, timed CTA, hooks и автоматические reveals нормализуются", () => {
   const options = normalizeOptions({
     video: "M7lc1UVf-VE",
-    playback: { start: 15, end: 10, rate: 4, autoplay: false },
+    playback: { start: 15, end: 20, rate: 4, autoplay: false },
     progress: { mode: "real" },
     captions: { enabled: true, language: "ru" },
     youtubeUi: "native",
@@ -26,7 +26,7 @@ test("start/end, rate, timed CTA, hooks и автоматические reveals 
     reveals: [{ start: 12, end: 8, selector: "#offer", persist: false }]
   });
   assert.equal(options.playback.start, 15);
-  assert.equal(options.playback.end, 15);
+  assert.equal(options.playback.end, 20);
   assert.equal(options.playback.rate, 2);
   assert.equal(options.playback.autoplay, false);
   assert.equal(options.progress.mode, "real");
@@ -46,6 +46,12 @@ test("start/end, rate, timed CTA, hooks и автоматические reveals 
   assert.equal(options.stage.poster, "auto");
   assert.equal(options.stage.clickToToggle, true);
   assert.equal(options.stage.revealDelay, 0);
+});
+
+test("пустые и нечисловые фрагменты отклоняются", () => {
+  for (const playback of [{ start: 10, end: 10 }, { start: 15, end: 10 }, { start: Infinity }, { end: NaN }, { start: -1 }]) {
+    assert.throws(() => normalizeOptions({ playback }), RangeError);
+  }
 });
 
 test("неизвестный placement возвращается к below", () => {

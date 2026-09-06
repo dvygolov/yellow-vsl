@@ -1,6 +1,6 @@
 {
   "name": "yellow-vsl",
-  "version": "1.7.5",
+  "version": "1.8.0",
   "description": "Бесплатный VSL-плеер для YouTube на чистом JavaScript",
   "type": "module",
   "license": "MIT",
@@ -16,13 +16,16 @@
   "files": [
     "dist",
     "src",
+    "types",
     "README.md",
     "LICENSE"
   ],
   "main": "dist/yellow-vsl.js",
   "module": "dist/yellow-vsl.esm.js",
+  "types": "types/index.d.ts",
   "exports": {
     ".": {
+      "types": "./types/index.d.ts",
       "import": "./dist/yellow-vsl.esm.js",
       "default": "./dist/yellow-vsl.js"
     }
@@ -31,17 +34,19 @@
     "build": "node scripts/build.mjs",
     "build:site": "npm run build && node scripts/build-site.mjs",
     "demo": "node demo/server.mjs",
-    "test": "npm run build:site && npm run test:unit && npm run test:browser && npm run test:site",
+    "test": "npm run build:site && npm run test:unit && npm run test:types && npm run test:browser && npm run test:site",
+    "test:types": "tsc --noEmit --strict --module NodeNext --target ES2020 tests/types/api.ts",
     "test:unit": "node --test tests/unit/*.test.mjs",
-    "test:browser": "node tests/browser/run.mjs",
+    "test:browser": "node tests/browser/run.mjs && node tests/browser/regressions.mjs && node tests/browser/loop-inspection.mjs",
     "test:site": "node tests/site/run.mjs",
     "test:live": "node tests/live/run.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.25.9",
-    "playwright": "^1.55.0"
+    "playwright": "^1.55.0",
+    "typescript": "^7.0.2"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20.19"
   }
 }

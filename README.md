@@ -30,7 +30,7 @@ If you like this script, PLEASE DONATE!
   data-video="https://youtu.be/M7lc1UVf-VE">
 </div>
 
-<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.7.5/dist/yellow-vsl.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.8.0/dist/yellow-vsl.min.js"></script>
 ```
 
 По умолчанию включены:
@@ -71,7 +71,7 @@ npm run demo
   Этот блок откроется после клика по CTA.
 </section>
 
-<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.7.5/dist/yellow-vsl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/dvygolov/yellow-vsl@v1.8.0/dist/yellow-vsl.min.js"></script>
 <script>
   const player = YellowVSL.create("#sales-video", {
     video: "https://www.youtube.com/watch?v=M7lc1UVf-VE",
@@ -143,6 +143,7 @@ ctas: [{
 | Параметр | Тип / значения | По умолчанию | Что делает |
 | --- | --- | --- | --- |
 | `video` | YouTube URL или ID | обязательно | Видео для плеера |
+| `storageKey` | string | `id` контейнера | Постоянный уникальный идентификатор экземпляра для сохранения просмотра |
 | `playback` | object | см. таблицу дальше | Воспроизведение, фрагмент, loop и перемотка |
 | `progress` | object | Smart Progress | Вид и кривая шкалы |
 | `controls` | object | play, volume, captions, progress, fullscreen | Кнопки нижней панели |
@@ -339,6 +340,18 @@ popup: {
 
 `sticky: true` включает правый нижний угол со стандартной шириной. После паузы sticky-плеер остаётся в углу, поэтому просмотр можно продолжить там же. Крестик закрывает его и ставит видео на паузу. `popup.trigger` принимает CSS-селектор одной или нескольких внешних кнопок. `popup.preload: true` загружает YouTube заранее, чтобы окно открывалось сразу. Без `preload` iframe создаётся только при первом открытии.
 
+Предзагрузка сама не открывает popup и не запускает воспроизведение. Smart Autoplay применяется при первом открытии. Закрытие отменяет отложенный запуск, даже если YouTube ещё загружается. Диалог удерживает клавиатурный фокус и возвращает его на открывший элемент после закрытия.
+
+### Сохранение просмотра и обновление формата
+
+Каждый экземпляр сохраняет собственные позицию, просмотренную область и открытые офферы. Для сохранения после перезагрузки задайте `id` контейнера или `storageKey` (в HTML — `data-storage-key`). Идентификатор должен быть уникальным среди активных экземпляров на странице. Без него состояние живёт только в памяти до перезагрузки.
+
+Записи разделены по пути страницы (без query/hash), идентификатору экземпляра, видео и фрагменту. Разные плееры одного видео не делят прогресс. Изменённая конфигурация CTA/reveal не наследует старое открытие оффера.
+
+Новый формат использует префикс `yellowvsl:v2:`. Старые общие записи `yellowvsl:v1:` не удаляются, но не переносятся: определить их владельца невозможно. После обновления продолжение просмотра начнётся с чистого состояния. Срок хранения — 30 дней с последнего сохранения.
+
+`resume: "auto"` восстанавливает позицию, но при `autoplay: false` ждёт запуска пользователем. `resume: false` отключает восстановление позиции, сохраняя учёт просмотренной области и открытых офферов.
+
 ### `theme`
 
 | Параметр | CSS-переменная |
@@ -358,6 +371,7 @@ popup: {
 | Атрибут | Пример | Назначение |
 | --- | --- | --- |
 | `data-video` | URL или ID | Обязательное видео |
+| `data-storage-key` | `hero-vsl` | Постоянный уникальный ID экземпляра; по умолчанию используется `id` контейнера |
 | `data-autoplay` | `false` | Отключить Smart Autoplay |
 | `data-progress` | `smart`, `real`, `hidden` | Режим прогресса |
 | `data-resume` | `ask`, `auto`, `false` | Возврат к просмотру |
@@ -394,6 +408,12 @@ player.destroy();
 ```
 
 `YellowVSL.autoInit()` повторно сканирует страницу и возвращает экземпляры всех элементов `data-yellow-vsl`.
+
+После `destroy()` повторный `autoInit()` создаёт новый экземпляр. `destroy()` отменяет незавершённую инициализацию и таймеры. Для ленивого popup исходный `ready` завершается без загрузки iframe; после `open()` новое значение `ready` ожидает фактической готовности YouTube. Ошибку можно получить через отклонение `ready` или событие `yellowvsl:error`.
+
+`enableCaptions("ru")` переопределяет начальный `captions.language`. После завершения видео `play()` начинает фрагмент заново. Пустые диапазоны (`end <= start`), нечисловые границы и начало за пределами видео отклоняются с ошибкой.
+
+Типы для TypeScript поставляются в `types/index.d.ts`; отдельная установка типов не нужна.
 
 ## События
 
@@ -449,13 +469,14 @@ npm install
 npm run build
 npm run build:site
 npm run test:unit
+npm run test:types
 npm run test:browser
 npm run test:live
 ```
 
-`npm test` собирает проект и запускает unit-тесты и детерминированные браузерные тесты в Chromium, Firefox и WebKit. Live smoke-test вынесен отдельно, поскольку зависит от доступности YouTube.
+Для разработки требуется Node.js 20.19 или новее; CI использует Node.js 24. `npm test` собирает проект и проверяет unit-тесты, TypeScript API, регрессии в Chromium/Firefox/WebKit, обнаружение спиннера и сайт. Live smoke-test вынесен отдельно, поскольку зависит от доступности YouTube. Его проверка исследует реально показываемый iframe; ошибка селектора не считается успешной проверкой.
 
-Каталог `site/` содержит исходники публичного лендинга, а `npm run build:site` создаёт готовый к публикации `site-dist/`. Workflow `.github/workflows/pages.yml` после каждого push в `main` публикует проверенную сборку на Cloudflare Pages.
+Каталог `site/` содержит исходники публичного лендинга, а `npm run build:site` создаёт готовый к публикации `site-dist/`. Workflow `.github/workflows/pages.yml` после push в `main` запускает полный CI и публикует его артефакт для того же коммита на Cloudflare Pages, без повторной сборки.
 
 Для прямого скачивания используйте файлы из [GitHub Releases](https://github.com/dvygolov/yellow-vsl/releases) или `dist/yellow-vsl.min.js` из нужного версионного тега. Для продакшена фиксируйте версию в CDN-адресе, а не подключайте ветку `main`.
 
