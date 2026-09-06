@@ -434,6 +434,7 @@ export class YellowVSLPlayer {
 
   _onStateChange(state) {
     if (this.destroyed || this.failed) return;
+    if (state === YT_STATE.PAUSED && this.playerState === YT_STATE.PAUSED) return;
     if (state === YT_STATE.PLAYING && (this.playbackIntent === "paused" || (this.options.popup && !this.popupOpen))) {
       this.adapter?.pause();
       return;
@@ -1077,6 +1078,9 @@ export class YellowVSLPlayer {
     this.loading = false;
     this.loop.restarting = false;
     this.loop.cancel();
+    // A popup moves its iframe on close; YouTube can omit the PAUSED callback.
+    // Settle local state and timers before that move, without waiting for the API.
+    this._onStateChange(YT_STATE.PAUSED);
     this._updateUi();
     this.adapter?.pause();
     return this;

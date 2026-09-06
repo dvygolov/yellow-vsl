@@ -1,4 +1,4 @@
-/*! YellowVSL v1.8.0 | MIT License | https://github.com/dvygolov/yellow-vsl */
+/*! YellowVSL v1.8.1 | MIT License | https://github.com/dvygolov/yellow-vsl */
 
 // src/utils.js
 var DEFAULT_PROGRESS_POINTS = Object.freeze([
@@ -1759,6 +1759,7 @@ var YellowVSLPlayer = class {
   }
   _onStateChange(state) {
     if (this.destroyed || this.failed) return;
+    if (state === YT_STATE.PAUSED && this.playerState === YT_STATE.PAUSED) return;
     if (state === YT_STATE.PLAYING && (this.playbackIntent === "paused" || this.options.popup && !this.popupOpen)) {
       this.adapter?.pause();
       return;
@@ -2351,6 +2352,7 @@ var YellowVSLPlayer = class {
     this.loading = false;
     this.loop.restarting = false;
     this.loop.cancel();
+    this._onStateChange(YT_STATE.PAUSED);
     this._updateUi();
     this.adapter?.pause();
     return this;
@@ -2499,7 +2501,7 @@ var YellowVSLPlayer = class {
 // package.json
 var package_default = {
   name: "yellow-vsl",
-  version: "1.8.0",
+  version: "1.8.1",
   description: "\u0411\u0435\u0441\u043F\u043B\u0430\u0442\u043D\u044B\u0439 VSL-\u043F\u043B\u0435\u0435\u0440 \u0434\u043B\u044F YouTube \u043D\u0430 \u0447\u0438\u0441\u0442\u043E\u043C JavaScript",
   type: "module",
   license: "MIT",

@@ -3,6 +3,17 @@ import { chromium, firefox, webkit } from "playwright";
 import { startStaticServer } from "../helpers/server.mjs";
 
 const cases = [
+  ["popup close pauses locally even when YouTube omits its state event", async () => {
+    const p = await make({ popup: { preload: true } });
+    p.open(); p.play(); await sleep(50);
+    let pauses = 0;
+    p.dom.root.addEventListener("yellowvsl:pause", () => pauses++);
+    p.adapter.pause = () => {};
+    p.close();
+    const stopped = p.getState().playerState === 2 && p.tickTimer === null && !p.popupOpen && pauses === 1;
+    p._onStateChange(2);
+    return stopped && pauses === 1;
+  }],
   ["a stale PLAYING state cannot end the mirror transition", async () => {
     const p = await make({ playback: { autoplay: false, resume: false, start: 10, end: 16, loop: true } });
     p.play(); p.loop.ready = true; p.loop.mirror.player.time = 10.1;
